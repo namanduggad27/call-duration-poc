@@ -1,595 +1,416 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#0D1117"
-    android:fillViewport="true">
+    android:orientation="vertical">
 
+    <!-- Top App Bar -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="56dp"
+        android:background="#161B22"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
 
-        <!-- Active Call Banner (Hidden when no active call) -->
-        <LinearLayout
-            android:id="@+id/bannerActiveCall"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:background="@drawable/bg_call_button"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:padding="12dp"
-            android:visibility="gone">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_call" />
-
-            <TextView
-                android:id="@+id/tvActiveCallBanner"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Active Call in Progress • Tap to open screen"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- App Header & Role Status Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="CallGuard Phone"
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvRole"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="ROLE_DIALER: Checking..."
-                android:textColor="#8B949E"
-                android:textSize="14sp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnRole"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#1976D2"
-                    android:text="Set as Default Phone"
-                    android:textColor="#FFFFFF"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/btnOpenAppSettings"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#21262D"
-                    android:text="App Settings (Unlock)"
-                    android:textColor="#8B949E"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tvRestrictedSettingsHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="If Android blocks access: tap 'App Settings' → ⋮ (top right) → 'Allow restricted settings'."
-                android:textColor="#6E7681"
-                android:textSize="11sp" />
-        </LinearLayout>
-
-        <!-- Call Limit & Snooze Settings Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Duration &amp; Snooze Policy"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <!-- Initial Call Limit -->
-            <TextView
-                android:id="@+id/tvLabelLimit"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="Initial Limit (before presence check): 1m"
-                android:textColor="#58A6FF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnLimit30s"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="30s (Test)"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnLimit1m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="1 min"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnLimit2m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="2 min"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnLimit5m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="5 min"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnLimit10m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="10 min"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnLimit30m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:backgroundTint="#21262D"
-                        android:text="30 min"
-                        android:textSize="11sp" />
-                </LinearLayout>
-            </HorizontalScrollView>
-
-            <!-- Snooze Duration -->
-            <TextView
-                android:id="@+id/tvLabelSnooze"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="Snooze Interval (per approval): 1m"
-                android:textColor="#58A6FF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnSnooze30s"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="30s (Test)"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnSnooze1m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="1 min"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnSnooze2m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="2 min"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnSnooze5m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="6dp"
-                        android:backgroundTint="#21262D"
-                        android:text="5 min"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btnSnooze10m"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:backgroundTint="#21262D"
-                        android:text="10 min"
-                        android:textSize="11sp" />
-                </LinearLayout>
-            </HorizontalScrollView>
-
-            <!-- Confirmation Window & Vibration -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnToggleWindow"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#21262D"
-                    android:text="Wait Window: 30s"
-                    android:textColor="#E6EDF3"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/btnToggleVibrate"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#21262D"
-                    android:text="Vibration: ON"
-                    android:textColor="#E6EDF3"
-                    android:textSize="12sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Dial-Pad Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Phone Dial-Pad"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <!-- Number Display with Backspace -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <EditText
-                    android:id="@+id/etDialpadNumber"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@null"
-                    android:hint="Dial number..."
-                    android:importantForAutofill="no"
-                    android:inputType="phone"
-                    android:textColor="#FFFFFF"
-                    android:textColorHint="#6E7681"
-                    android:textSize="26sp"
-                    android:textStyle="bold" />
-
-                <ImageButton
-                    android:id="@+id/btnBackspace"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:contentDescription="Backspace"
-                    android:src="@drawable/ic_backspace" />
-            </LinearLayout>
-
-            <!-- Dialpad Grid 3x4 -->
-            <GridLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:alignmentMode="alignMargins"
-                android:columnCount="3"
-                android:rowCount="4">
-
-                <!-- Row 1: 1, 2, 3 -->
-                <Button
-                    android:id="@+id/btnDigit1"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="1"
-                    android:textColor="#FFFFFF"
-                    android:textSize="20sp" />
-
-                <Button
-                    android:id="@+id/btnDigit2"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="2\nABC"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
-                    android:id="@+id/btnDigit3"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="3\nDEF"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <!-- Row 2: 4, 5, 6 -->
-                <Button
-                    android:id="@+id/btnDigit4"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="4\nGHI"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
-                    android:id="@+id/btnDigit5"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="5\nJKL"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
-                    android:id="@+id/btnDigit6"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="6\nMNO"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <!-- Row 3: 7, 8, 9 -->
-                <Button
-                    android:id="@+id/btnDigit7"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="7\nPQRS"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
-                    android:id="@+id/btnDigit8"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="8\nTUV"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
-                    android:id="@+id/btnDigit9"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="9\nWXYZ"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <!-- Row 4: *, 0, # -->
-                <Button
-                    android:id="@+id/btnDigitStar"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="*"
-                    android:textColor="#FFFFFF"
-                    android:textSize="22sp" />
-
-                <Button
-                    android:id="@+id/btnDigit0"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="0\n+"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
-                    android:id="@+id/btnDigitHash"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:text="#"
-                    android:textColor="#FFFFFF"
-                    android:textSize="20sp" />
-            </GridLayout>
-
-            <!-- Call Button -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/btnPlaceCall"
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:background="@drawable/bg_call_button"
-                    android:contentDescription="Place Call"
-                    android:src="@drawable/ic_call" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- POC Test & Logging Drawer (Collapsible) -->
         <TextView
-            android:id="@+id/tvToggleMainPoc"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="CallGuard"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Menu"
+            android:src="@drawable/ic_more_vert" />
+    </LinearLayout>
+
+    <!-- Active Call Banner (Hidden when no active call) -->
+    <LinearLayout
+        android:id="@+id/bannerActiveCall"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_call_button"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="10dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_call" />
+
+        <TextView
+            android:id="@+id/tvActiveCallBanner"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:padding="8dp"
-            android:text="POC Verification &amp; Diagnostics ▼"
-            android:textColor="#8B949E"
-            android:textSize="12sp" />
+            android:layout_marginStart="8dp"
+            android:text="Active Call in Progress • Tap to open screen"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/layoutMainPoc"
+    <!-- Main Content Frame -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- 1. KEYPAD VIEW (Default view when opened) -->
+        <ScrollView
+            android:id="@+id/layoutKeypadView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="14dp"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/tvDevice"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="#8B949E"
-                android:textSize="11sp" />
-
-            <EditText
-                android:id="@+id/etNotes"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Notes (carrier, SIM, audio route)"
-                android:importantForAutofill="no"
-                android:inputType="textMultiLine"
-                android:textColor="#FFFFFF"
-                android:textColorHint="#6E7681"
-                android:textSize="12sp" />
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingHorizontal="24dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
 
-                <Button
-                    android:id="@+id/btnCopy"
-                    android:layout_width="0dp"
+                <!-- Number Display with Backspace -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:backgroundTint="#21262D"
-                    android:text="Copy log"
-                    android:textSize="11sp" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="8dp">
 
-                <Button
-                    android:id="@+id/btnShare"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:backgroundTint="#21262D"
-                    android:text="Share log"
-                    android:textSize="11sp" />
+                    <EditText
+                        android:id="@+id/etDialpadNumber"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:gravity="center"
+                        android:hint="Dial number..."
+                        android:importantForAutofill="no"
+                        android:inputType="phone"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#6E7681"
+                        android:textSize="32sp"
+                        android:textStyle="bold" />
 
-                <Button
-                    android:id="@+id/btnClearLog"
-                    android:layout_width="0dp"
+                    <ImageButton
+                        android:id="@+id/btnBackspace"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:contentDescription="Backspace"
+                        android:src="@drawable/ic_backspace" />
+                </LinearLayout>
+
+                <!-- Dialpad Grid 3x4 -->
+                <GridLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:backgroundTint="#21262D"
-                    android:text="Clear"
-                    android:textSize="11sp" />
+                    android:layout_marginTop="20dp"
+                    android:alignmentMode="alignMargins"
+                    android:columnCount="3"
+                    android:rowCount="4">
+
+                    <!-- Row 1: 1, 2, 3 -->
+                    <Button
+                        android:id="@+id/btnDigit1"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="1"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp" />
+
+                    <Button
+                        android:id="@+id/btnDigit2"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="2\nABC"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <Button
+                        android:id="@+id/btnDigit3"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="3\nDEF"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <!-- Row 2: 4, 5, 6 -->
+                    <Button
+                        android:id="@+id/btnDigit4"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="4\nGHI"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <Button
+                        android:id="@+id/btnDigit5"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="5\nJKL"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <Button
+                        android:id="@+id/btnDigit6"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="6\nMNO"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <!-- Row 3: 7, 8, 9 -->
+                    <Button
+                        android:id="@+id/btnDigit7"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="7\nPQRS"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <Button
+                        android:id="@+id/btnDigit8"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="8\nTUV"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <Button
+                        android:id="@+id/btnDigit9"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="9\nWXYZ"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <!-- Row 4: *, 0, # -->
+                    <Button
+                        android:id="@+id/btnDigitStar"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="*"
+                        android:textColor="#FFFFFF"
+                        android:textSize="24sp" />
+
+                    <Button
+                        android:id="@+id/btnDigit0"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="0\n+"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <Button
+                        android:id="@+id/btnDigitHash"
+                        android:layout_width="0dp"
+                        android:layout_height="64dp"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:text="#"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp" />
+                </GridLayout>
+
+                <!-- Call Button -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/btnPlaceCall"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:background="@drawable/bg_call_button"
+                        android:contentDescription="Place Call"
+                        android:src="@drawable/ic_call" />
+                </LinearLayout>
             </LinearLayout>
+        </ScrollView>
+
+        <!-- 2. HOME VIEW (Call History List) -->
+        <LinearLayout
+            android:id="@+id/layoutHomeView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
 
             <TextView
-                android:id="@+id/tvLog"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:fontFamily="monospace"
-                android:textIsSelectable="true"
-                android:textSize="11sp" />
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="12dp"
+                android:text="Recent Calls"
+                android:textColor="#8B949E"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- Empty State -->
+            <LinearLayout
+                android:id="@+id/layoutEmptyHistory"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="32dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:background="@drawable/bg_dialpad_key"
+                    android:padding="16dp"
+                    android:src="@drawable/ic_home" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="No Call History"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center"
+                    android:text="Calls made and received will appear here with timestamps and duration."
+                    android:textColor="#8B949E"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- History RecyclerView -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvCallHistory"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:paddingBottom="12dp" />
         </LinearLayout>
 
+    </FrameLayout>
+
+    <!-- Bottom Navigation Bar -->
+    <LinearLayout
+        android:id="@+id/layoutBottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="#161B22"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <!-- Tab 1: Home (Call History) -->
+        <LinearLayout
+            android:id="@+id/tabHome"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/ivTabHome"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_home" />
+
+            <TextView
+                android:id="@+id/tvTabHome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Home"
+                android:textColor="#8B949E"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Tab 2: Keypad (Dialer) -->
+        <LinearLayout
+            android:id="@+id/tabKeypad"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/ivTabKeypad"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_dialpad" />
+
+            <TextView
+                android:id="@+id/tvTabKeypad"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Keypad"
+                android:textColor="#58A6FF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
-</ScrollView>
+
+</LinearLayout>

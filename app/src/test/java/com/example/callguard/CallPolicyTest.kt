@@ -64,4 +64,28 @@ class CallPolicyTest {
         assertTrue("Within window", withinWindow < deadline)
         assertTrue("Expired after window", expired >= deadline)
     }
+
+    @Test
+    fun testMaxDurationStrictlyEnforcesThreeHourCap() {
+        assertEquals(10800L, CallPolicyRepository.MAX_ALLOWED_DURATION_SECONDS) // 3 hours = 10,800s
+
+        // Attempting to set 4 hours (14,400s) must be clamped to 3 hours (10,800s)
+        CallPolicyRepository.updateMaxDuration(14_400L)
+        assertEquals(10_800L, CallPolicyRepository.getPolicy().maxDurationSeconds)
+
+        // Setting exactly 3 hours (10,800s) must remain 10,800s
+        CallPolicyRepository.updateMaxDuration(10_800L)
+        assertEquals(10_800L, CallPolicyRepository.getPolicy().maxDurationSeconds)
+
+        // Setting 1 hour (3,600s) must be allowed
+        CallPolicyRepository.updateMaxDuration(3_600L)
+        assertEquals(3_600L, CallPolicyRepository.getPolicy().maxDurationSeconds)
+    }
+
+    @Test
+    fun testMinDurationEnforced() {
+        // Attempting to set < 10 seconds must be clamped to 10s
+        CallPolicyRepository.updateMaxDuration(2L)
+        assertEquals(10L, CallPolicyRepository.getPolicy().maxDurationSeconds)
+    }
 }

@@ -204,6 +204,23 @@ object ActiveCallStore {
         val entry = find(call) ?: return
         CallStateLogger.log("CALL", "onCallRemoved #${entry.id}")
         markEnded(entry, "onCallRemoved")
+
+        val durationSec = if (entry.activeSince != null) {
+            ((SystemClock.elapsedRealtime() - entry.activeSince!!) / 1000L).coerceAtLeast(0L)
+        } else {
+            0L
+        }
+
+        CallHistoryRepository.addRecord(
+            CallRecord(
+                phoneNumber = entry.phoneNumber ?: "Unknown",
+                direction = entry.direction,
+                timestampMs = System.currentTimeMillis(),
+                durationSeconds = durationSec,
+                autoDisconnected = currentSession.state == SessionState.DISCONNECTING,
+            ),
+        )
+
         entries.remove(entry)
 
         if (entries.isEmpty()) {

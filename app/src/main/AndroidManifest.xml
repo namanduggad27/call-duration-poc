@@ -63,6 +63,12 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
 
+        <!-- Settings Screen (Duration Limit, Snooze, Timers) -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="Settings" />
+
         <!-- Telecom binds to this service; protected by system-only BIND_INCALL_SERVICE permission -->
         <service
             android:name=".POCInCallService"

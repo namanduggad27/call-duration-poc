@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="4dp"
+    android:background="@drawable/bg_card"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <!-- Direction Arrow Icon -->
+    <ImageView
+        android:id="@+id/ivDirection"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_dialpad_key"
+        android:padding="8dp"
+        android:src="@drawable/ic_call_outgoing" />
+
+    <!-- Number and Timestamp -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvPhoneNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+1 234 567 8900"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvTimestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Today, 10:45 AM"
+            android:textColor="#8B949E"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- Duration Badge -->
+    <TextView
+        android:id="@+id/tvDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_chip"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="4dp"
+        android:text="02m 15s"
+        android:textColor="#58A6FF"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- Call Button -->
+    <ImageButton
+        android:id="@+id/btnCallBack"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_call_button"
+        android:contentDescription="Call Back"
+        android:padding="10dp"
+        android:src="@drawable/ic_call" />
+
+</LinearLayout>

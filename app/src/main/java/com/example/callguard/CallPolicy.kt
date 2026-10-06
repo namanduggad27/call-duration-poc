@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * User-configurable duration control policy as designed in Section 29 & 30 of the system design.
+ * User-configurable duration control policy.
+ * Strict Constraint: Max call duration cannot exceed 3 hours (180 minutes / 10,800 seconds).
  */
 data class CallPolicy(
     val maxDurationSeconds: Long = 60L, // Initial limit before presence check (default 60s for testing)
@@ -17,6 +18,12 @@ data class CallPolicy(
 )
 
 object CallPolicyRepository {
+    const val MAX_ALLOWED_DURATION_SECONDS = 3 * 60 * 60L // 3 hours = 10,800 seconds
+    const val MIN_ALLOWED_DURATION_SECONDS = 10L // 10 seconds
+
+    const val MAX_ALLOWED_SNOOZE_SECONDS = 60 * 60L // 1 hour max snooze
+    const val MIN_ALLOWED_SNOOZE_SECONDS = 10L
+
     private const val PREFS_NAME = "callguard_policy_prefs"
     private const val KEY_MAX_DURATION = "max_duration_seconds"
     private const val KEY_SNOOZE_DURATION = "snooze_duration_seconds"
@@ -38,14 +45,16 @@ object CallPolicyRepository {
     fun getPolicy(): CallPolicy = _policyFlow.value
 
     fun updateMaxDuration(seconds: Long) {
+        val clamped = seconds.coerceIn(MIN_ALLOWED_DURATION_SECONDS, MAX_ALLOWED_DURATION_SECONDS)
         val current = _policyFlow.value
-        val updated = current.copy(maxDurationSeconds = seconds.coerceAtLeast(10L))
+        val updated = current.copy(maxDurationSeconds = clamped)
         save(updated)
     }
 
     fun updateSnoozeDuration(seconds: Long) {
+        val clamped = seconds.coerceIn(MIN_ALLOWED_SNOOZE_SECONDS, MAX_ALLOWED_SNOOZE_SECONDS)
         val current = _policyFlow.value
-        val updated = current.copy(snoozeDurationSeconds = seconds.coerceAtLeast(10L))
+        val updated = current.copy(snoozeDurationSeconds = clamped)
         save(updated)
     }
 
@@ -64,8 +73,10 @@ object CallPolicyRepository {
     private fun load() {
         val p = prefs ?: return
         val loaded = CallPolicy(
-            maxDurationSeconds = p.getLong(KEY_MAX_DURATION, 60L),
-            snoozeDurationSeconds = p.getLong(KEY_SNOOZE_DURATION, 60L),
+            maxDurationSeconds = p.getLong(KEY_MAX_DURATION, 60L)
+                .coerceIn(MIN_ALLOWED_DURATION_SECONDS, MAX_ALLOWED_DURATION_SECONDS),
+            snoozeDurationSeconds = p.getLong(KEY_SNOOZE_DURATION, 60L)
+                .coerceIn(MIN_ALLOWED_SNOOZE_SECONDS, MAX_ALLOWED_SNOOZE_SECONDS),
             confirmationWindowSeconds = p.getLong(KEY_CONFIRMATION_WINDOW, 30L),
             vibrationEnabled = p.getBoolean(KEY_VIBRATION, true),
         )

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_settings"
+        android:title="Settings" />
+    <item
+        android:id="@+id/menu_default_phone"
+        android:title="Set as Default Phone" />
+    <item
+        android:id="@+id/menu_diagnostics"
+        android:title="Diagnostics &amp; Logs" />
+    <item
+        android:id="@+id/menu_clear_history"
+        android:title="Clear Call History" />
+</menu>

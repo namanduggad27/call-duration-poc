@@ -6,77 +6,69 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.telecom.TelecomManager
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.launch
 
 /**
  * Main Default Dialer Screen:
- * - Handles Intent.ACTION_DIAL and provides a complete interactive dial-pad UI.
- * - Provides configurable Call Limit and Snooze durations.
- * - Directs the user to CallActivity for live incoming and ongoing calls.
+ * - Default launch view: Clean Keypad and dialed number display.
+ * - Bottom Navigation: "Home" (Call History with timestamps & duration) and "Keypad" (Dialer).
+ * - Overflow Menu (⋮): Dedicated Settings, Set as Default Phone, Diagnostics, Clear History.
+ * - Handles Intent.ACTION_DIAL and public TelecomManager call placement.
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var dialerRole: DialerRoleManager
 
-    // Active call banner
+    // Top Bar & Active Call Banner
+    private lateinit var btnMenu: ImageButton
     private lateinit var bannerActiveCall: LinearLayout
     private lateinit var tvActiveCallBanner: TextView
 
-    // Role
-    private lateinit var tvRole: TextView
-    private lateinit var btnRole: Button
-    private lateinit var btnOpenAppSettings: Button
+    // View Containers (Tabs)
+    private lateinit var layoutKeypadView: ScrollView
+    private lateinit var layoutHomeView: LinearLayout
 
-    // Policy settings
-    private lateinit var tvLabelLimit: TextView
-    private lateinit var btnLimit30s: Button
-    private lateinit var btnLimit1m: Button
-    private lateinit var btnLimit2m: Button
-    private lateinit var btnLimit5m: Button
-    private lateinit var btnLimit10m: Button
-    private lateinit var btnLimit30m: Button
+    // Bottom Navigation
+    private lateinit var tabHome: LinearLayout
+    private lateinit var ivTabHome: ImageView
+    private lateinit var tvTabHome: TextView
+    private lateinit var tabKeypad: LinearLayout
+    private lateinit var ivTabKeypad: ImageView
+    private lateinit var tvTabKeypad: TextView
 
-    private lateinit var tvLabelSnooze: TextView
-    private lateinit var btnSnooze30s: Button
-    private lateinit var btnSnooze1m: Button
-    private lateinit var btnSnooze2m: Button
-    private lateinit var btnSnooze5m: Button
-    private lateinit var btnSnooze10m: Button
-
-    private lateinit var btnToggleWindow: Button
-    private lateinit var btnToggleVibrate: Button
-
-    // Dialpad
+    // Dialpad Views
     private lateinit var etDialpadNumber: EditText
     private lateinit var btnBackspace: ImageButton
     private lateinit var btnPlaceCall: ImageButton
 
-    // Diagnostics / POC
-    private lateinit var tvToggleMainPoc: TextView
-    private lateinit var layoutMainPoc: LinearLayout
-    private lateinit var etNotes: EditText
-    private lateinit var tvDevice: TextView
-    private lateinit var tvLog: TextView
-
-    private var pocSectionExpanded = false
+    // Call History Views
+    private lateinit var layoutEmptyHistory: LinearLayout
+    private lateinit var rvCallHistory: RecyclerView
+    private lateinit var historyAdapter: CallHistoryAdapter
 
     private val roleLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -84,7 +76,12 @@ class MainActivity : AppCompatActivity() {
                 "ROLE",
                 "Role request finished resultCode=${result.resultCode} held=${dialerRole.isDialerRoleHeld()}",
             )
-            renderRole()
+            val held = dialerRole.isDialerRoleHeld()
+            Toast.makeText(
+                this,
+                if (held) "CallGuard is now your default phone app!" else "ROLE_DIALER not granted",
+                Toast.LENGTH_SHORT,
+            ).show()
         }
 
     private val permissionLauncher =
@@ -98,6 +95,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CallPolicyRepository.init(this)
+        CallHistoryRepository.init(this)
         CallVibrator.init(this)
 
         setContentView(R.layout.activity_main)
@@ -105,24 +103,30 @@ class MainActivity : AppCompatActivity() {
         dialerRole = DialerRoleManager(this)
 
         bindViews()
-        setupClicks()
+        setupBottomNav()
         setupDialpad()
-        setupSettingsControls()
+        setupHistoryList()
+        setupMenu()
+        setupActiveCallBanner()
         handleDialIntent(intent)
         requestRuntimePermissions()
 
-        tvDevice.text = deviceSummary()
+        // Default to Keypad on app launch
+        showTab(NavigationTab.KEYPAD)
 
+        // Observe reactive flows
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     ActiveCallStore.state.collect { renderCallState(it) }
                 }
                 launch {
-                    CallPolicyRepository.policyFlow.collect { renderPolicy(it) }
-                }
-                launch {
-                    CallStateLogger.lines.collect { tvLog.text = it.takeLast(60).joinToString("\n") }
+                    CallHistoryRepository.historyFlow.collect { records ->
+                        historyAdapter.submitList(records)
+                        val isEmpty = records.isEmpty()
+                        layoutEmptyHistory.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                        rvCallHistory.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                    }
                 }
             }
         }
@@ -134,71 +138,77 @@ class MainActivity : AppCompatActivity() {
         handleDialIntent(intent)
     }
 
-    override fun onResume() {
-        super.onResume()
-        renderRole()
-    }
-
     private fun bindViews() {
+        btnMenu = findViewById(R.id.btnMenu)
         bannerActiveCall = findViewById(R.id.bannerActiveCall)
         tvActiveCallBanner = findViewById(R.id.tvActiveCallBanner)
 
-        tvRole = findViewById(R.id.tvRole)
-        btnRole = findViewById(R.id.btnRole)
-        btnOpenAppSettings = findViewById(R.id.btnOpenAppSettings)
+        layoutKeypadView = findViewById(R.id.layoutKeypadView)
+        layoutHomeView = findViewById(R.id.layoutHomeView)
 
-        tvLabelLimit = findViewById(R.id.tvLabelLimit)
-        btnLimit30s = findViewById(R.id.btnLimit30s)
-        btnLimit1m = findViewById(R.id.btnLimit1m)
-        btnLimit2m = findViewById(R.id.btnLimit2m)
-        btnLimit5m = findViewById(R.id.btnLimit5m)
-        btnLimit10m = findViewById(R.id.btnLimit10m)
-        btnLimit30m = findViewById(R.id.btnLimit30m)
+        tabHome = findViewById(R.id.tabHome)
+        ivTabHome = findViewById(R.id.ivTabHome)
+        tvTabHome = findViewById(R.id.tvTabHome)
 
-        tvLabelSnooze = findViewById(R.id.tvLabelSnooze)
-        btnSnooze30s = findViewById(R.id.btnSnooze30s)
-        btnSnooze1m = findViewById(R.id.btnSnooze1m)
-        btnSnooze2m = findViewById(R.id.btnSnooze2m)
-        btnSnooze5m = findViewById(R.id.btnSnooze5m)
-        btnSnooze10m = findViewById(R.id.btnSnooze10m)
-
-        btnToggleWindow = findViewById(R.id.btnToggleWindow)
-        btnToggleVibrate = findViewById(R.id.btnToggleVibrate)
+        tabKeypad = findViewById(R.id.tabKeypad)
+        ivTabKeypad = findViewById(R.id.ivTabKeypad)
+        tvTabKeypad = findViewById(R.id.tvTabKeypad)
 
         etDialpadNumber = findViewById(R.id.etDialpadNumber)
         btnBackspace = findViewById(R.id.btnBackspace)
         btnPlaceCall = findViewById(R.id.btnPlaceCall)
 
-        tvToggleMainPoc = findViewById(R.id.tvToggleMainPoc)
-        layoutMainPoc = findViewById(R.id.layoutMainPoc)
-        etNotes = findViewById(R.id.etNotes)
-        tvDevice = findViewById(R.id.tvDevice)
-        tvLog = findViewById(R.id.tvLog)
+        layoutEmptyHistory = findViewById(R.id.layoutEmptyHistory)
+        rvCallHistory = findViewById(R.id.rvCallHistory)
     }
 
-    private fun setupClicks() {
-        btnRole.setOnClickListener { requestDialerRole() }
-        btnOpenAppSettings.setOnClickListener { openAppSettings() }
+    private enum class NavigationTab {
+        HOME, KEYPAD
+    }
 
-        bannerActiveCall.setOnClickListener {
-            val intent = Intent(this, CallActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    private fun setupBottomNav() {
+        tabHome.setOnClickListener { showTab(NavigationTab.HOME) }
+        tabKeypad.setOnClickListener { showTab(NavigationTab.KEYPAD) }
+    }
+
+    private fun showTab(tab: NavigationTab) {
+        val activeColor = Color.parseColor("#58A6FF")
+        val inactiveColor = Color.parseColor("#8B949E")
+
+        when (tab) {
+            NavigationTab.HOME -> {
+                layoutHomeView.visibility = View.VISIBLE
+                layoutKeypadView.visibility = View.GONE
+
+                ivTabHome.setColorFilter(activeColor)
+                tvTabHome.setTextColor(activeColor)
+
+                ivTabKeypad.setColorFilter(inactiveColor)
+                tvTabKeypad.setTextColor(inactiveColor)
             }
-            startActivity(intent)
-        }
+            NavigationTab.KEYPAD -> {
+                layoutKeypadView.visibility = View.VISIBLE
+                layoutHomeView.visibility = View.GONE
 
-        tvToggleMainPoc.setOnClickListener {
-            pocSectionExpanded = !pocSectionExpanded
-            layoutMainPoc.visibility = if (pocSectionExpanded) View.VISIBLE else View.GONE
-            tvToggleMainPoc.text = if (pocSectionExpanded) "POC Verification & Diagnostics ▲" else "POC Verification & Diagnostics ▼"
-        }
+                ivTabKeypad.setColorFilter(activeColor)
+                tvTabKeypad.setTextColor(activeColor)
 
-        findViewById<Button>(R.id.btnCopy).setOnClickListener { copyReport() }
-        findViewById<Button>(R.id.btnShare).setOnClickListener { shareReport() }
-        findViewById<Button>(R.id.btnClearLog).setOnClickListener { CallStateLogger.clear() }
+                ivTabHome.setColorFilter(inactiveColor)
+                tvTabHome.setTextColor(inactiveColor)
+            }
+        }
     }
 
-    // ---- Dialpad Logic --------------------------------------------------------------------
+    private fun setupHistoryList() {
+        historyAdapter = CallHistoryAdapter { phoneNumber ->
+            // Pre-fill dialed number and switch to Keypad
+            etDialpadNumber.setText(phoneNumber)
+            etDialpadNumber.setSelection(phoneNumber.length)
+            showTab(NavigationTab.KEYPAD)
+        }
+        rvCallHistory.layoutManager = LinearLayoutManager(this)
+        rvCallHistory.adapter = historyAdapter
+    }
 
     private fun setupDialpad() {
         fun appendDigit(d: String) {
@@ -248,7 +258,8 @@ class MainActivity : AppCompatActivity() {
             if (!number.isNullOrBlank()) {
                 etDialpadNumber.setText(number)
                 etDialpadNumber.setSelection(number.length)
-                CallStateLogger.log("DIAL", "ACTION_DIAL received with number pre-filled")
+                showTab(NavigationTab.KEYPAD)
+                CallStateLogger.log("DIAL", "ACTION_DIAL received with number pre-filled: $number")
             }
         }
     }
@@ -267,7 +278,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         try {
-            CallStateLogger.log("DIAL", "Placing call via TelecomManager...")
+            CallStateLogger.log("DIAL", "Placing call via TelecomManager to $number...")
             val telecom = getSystemService(TelecomManager::class.java)
             telecom.placeCall(Uri.fromParts("tel", number, null), Bundle())
 
@@ -281,111 +292,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ---- Settings Controls ----------------------------------------------------------------
-
-    private fun setupSettingsControls() {
-        btnLimit30s.setOnClickListener { CallPolicyRepository.updateMaxDuration(30L) }
-        btnLimit1m.setOnClickListener { CallPolicyRepository.updateMaxDuration(60L) }
-        btnLimit2m.setOnClickListener { CallPolicyRepository.updateMaxDuration(120L) }
-        btnLimit5m.setOnClickListener { CallPolicyRepository.updateMaxDuration(300L) }
-        btnLimit10m.setOnClickListener { CallPolicyRepository.updateMaxDuration(600L) }
-        btnLimit30m.setOnClickListener { CallPolicyRepository.updateMaxDuration(1800L) }
-
-        btnSnooze30s.setOnClickListener { CallPolicyRepository.updateSnoozeDuration(30L) }
-        btnSnooze1m.setOnClickListener { CallPolicyRepository.updateSnoozeDuration(60L) }
-        btnSnooze2m.setOnClickListener { CallPolicyRepository.updateSnoozeDuration(120L) }
-        btnSnooze5m.setOnClickListener { CallPolicyRepository.updateSnoozeDuration(300L) }
-        btnSnooze10m.setOnClickListener { CallPolicyRepository.updateSnoozeDuration(600L) }
-
-        btnToggleWindow.setOnClickListener {
-            val current = CallPolicyRepository.getPolicy().confirmationWindowSeconds
-            val next = when (current) {
-                15L -> 30L
-                30L -> 45L
-                45L -> 60L
-                else -> 15L
-            }
-            CallPolicyRepository.updateConfirmationWindow(next)
-        }
-
-        btnToggleVibrate.setOnClickListener {
-            val current = CallPolicyRepository.getPolicy().vibrationEnabled
-            CallPolicyRepository.setVibrationEnabled(!current)
-        }
-    }
-
-    private fun renderPolicy(policy: CallPolicy) {
-        val limitText = formatSeconds(policy.maxDurationSeconds)
-        tvLabelLimit.text = "Initial Limit (before presence check): $limitText"
-
-        val snoozeText = formatSeconds(policy.snoozeDurationSeconds)
-        tvLabelSnooze.text = "Snooze Interval (per approval): $snoozeText"
-
-        btnToggleWindow.text = "Wait Window: ${policy.confirmationWindowSeconds}s"
-        btnToggleVibrate.text = "Vibration: " + if (policy.vibrationEnabled) "ON" else "OFF"
-
-        // Highlight selected buttons
-        updateButtonHighlight(btnLimit30s, policy.maxDurationSeconds == 30L)
-        updateButtonHighlight(btnLimit1m, policy.maxDurationSeconds == 60L)
-        updateButtonHighlight(btnLimit2m, policy.maxDurationSeconds == 120L)
-        updateButtonHighlight(btnLimit5m, policy.maxDurationSeconds == 300L)
-        updateButtonHighlight(btnLimit10m, policy.maxDurationSeconds == 600L)
-        updateButtonHighlight(btnLimit30m, policy.maxDurationSeconds == 1800L)
-
-        updateButtonHighlight(btnSnooze30s, policy.snoozeDurationSeconds == 30L)
-        updateButtonHighlight(btnSnooze1m, policy.snoozeDurationSeconds == 60L)
-        updateButtonHighlight(btnSnooze2m, policy.snoozeDurationSeconds == 120L)
-        updateButtonHighlight(btnSnooze5m, policy.snoozeDurationSeconds == 300L)
-        updateButtonHighlight(btnSnooze10m, policy.snoozeDurationSeconds == 600L)
-    }
-
-    private fun updateButtonHighlight(btn: Button, isSelected: Boolean) {
-        btn.backgroundTintList = ContextCompat.getColorStateList(
-            this,
-            if (isSelected) android.R.color.holo_blue_dark else android.R.color.darker_gray,
-        )
-    }
-
-    private fun formatSeconds(seconds: Long): String {
-        return if (seconds >= 60) {
-            if (seconds % 60 == 0L) "${seconds / 60}m" else "${seconds / 60}m ${seconds % 60}s"
-        } else {
-            "${seconds}s"
-        }
-    }
-
-    // ---- Role & System Settings -----------------------------------------------------------
-
-    private fun requestDialerRole() {
-        val intent = dialerRole.createRequestIntent()
-        if (intent == null) {
-            CallStateLogger.log("ROLE", "ROLE_DIALER is not available on this device")
-            Toast.makeText(this, "ROLE_DIALER not available", Toast.LENGTH_LONG).show()
-            return
-        }
-        CallStateLogger.log("ROLE", "Launching ROLE_DIALER request")
-        roleLauncher.launch(intent)
-    }
-
-    private fun openAppSettings() {
-        try {
-            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.fromParts("package", packageName, null)
+    private fun setupActiveCallBanner() {
+        bannerActiveCall.setOnClickListener {
+            val intent = Intent(this, CallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
             startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Unable to open settings", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun renderRole() {
-        val held = dialerRole.isDialerRoleHeld()
-        tvRole.text = "ROLE_DIALER: " + when {
-            held -> "HELD (OK)"
-            dialerRole.isRoleAvailable() -> "NOT HELD - tap button below"
-            else -> "NOT AVAILABLE on this device"
-        }
-        btnRole.isEnabled = !held
     }
 
     private fun renderCallState(state: StoreState) {
@@ -404,6 +317,91 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ---- Overflow Menu (⋮) ----------------------------------------------------------------
+
+    private fun setupMenu() {
+        btnMenu.setOnClickListener { view ->
+            val popup = PopupMenu(this, view)
+            popup.menuInflater.inflate(R.menu.menu_main, popup.menu)
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.menu_settings -> {
+                        startActivity(Intent(this, SettingsActivity::class.java))
+                        true
+                    }
+                    R.id.menu_default_phone -> {
+                        handleDefaultPhoneMenu()
+                        true
+                    }
+                    R.id.menu_diagnostics -> {
+                        showDiagnosticsDialog()
+                        true
+                    }
+                    R.id.menu_clear_history -> {
+                        showClearHistoryDialog()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            popup.show()
+        }
+    }
+
+    private fun handleDefaultPhoneMenu() {
+        if (dialerRole.isDialerRoleHeld()) {
+            Toast.makeText(this, "CallGuard is already the default phone app!", Toast.LENGTH_SHORT).show()
+        } else {
+            val intent = dialerRole.createRequestIntent()
+            if (intent != null) {
+                roleLauncher.launch(intent)
+            } else {
+                Toast.makeText(this, "ROLE_DIALER not available on this device", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showDiagnosticsDialog() {
+        val held = dialerRole.isDialerRoleHeld()
+        val policy = CallPolicyRepository.getPolicy()
+        val report = buildString {
+            appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})")
+            appendLine("ROLE_DIALER: ${if (held) "HELD (OK)" else "NOT HELD"}")
+            appendLine("Policy: Limit=${policy.maxDurationSeconds}s (${policy.maxDurationSeconds / 60}m) | Snooze=${policy.snoozeDurationSeconds}s | Window=${policy.confirmationWindowSeconds}s | Vibrate=${policy.vibrationEnabled}")
+            appendLine("--- Recent Logs ---")
+            append(CallStateLogger.lines.value.takeLast(25).joinToString("\n"))
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Diagnostics & Logs")
+            .setMessage(report)
+            .setPositiveButton("Copy") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("CallGuard Diagnostics", report))
+                Toast.makeText(this, "Diagnostics copied to clipboard", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("Share") { _, _ ->
+                val send = Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(Intent.EXTRA_TEXT, report)
+                startActivity(Intent.createChooser(send, "Share Diagnostics"))
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showClearHistoryDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Clear Call History")
+            .setMessage("Are you sure you want to delete all call history records?")
+            .setPositiveButton("Clear") { _, _ ->
+                CallHistoryRepository.clear()
+                Toast.makeText(this, "Call history cleared", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun requestRuntimePermissions() {
         val needed = buildList {
             add(Manifest.permission.CALL_PHONE)
@@ -412,34 +410,5 @@ class MainActivity : AppCompatActivity() {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
         if (needed.isNotEmpty()) permissionLauncher.launch(needed.toTypedArray())
-    }
-
-    // ---- Report & Diagnostics -------------------------------------------------------------
-
-    private fun deviceSummary(): String =
-        "${Build.MANUFACTURER} ${Build.MODEL} | Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
-
-    private fun buildReport(): String = buildString {
-        appendLine("CallGuard Phone Report")
-        appendLine("Device: ${deviceSummary()}")
-        appendLine("ROLE_DIALER held: ${dialerRole.isDialerRoleHeld()}")
-        val policy = CallPolicyRepository.getPolicy()
-        appendLine("Policy: Limit=${policy.maxDurationSeconds}s Snooze=${policy.snoozeDurationSeconds}s Window=${policy.confirmationWindowSeconds}s")
-        appendLine("Notes: ${etNotes.text}")
-        appendLine("--- log ---")
-        append(CallStateLogger.asText())
-    }
-
-    private fun copyReport() {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("CallGuard report", buildReport()))
-        Toast.makeText(this, "Report copied", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun shareReport() {
-        val send = Intent(Intent.ACTION_SEND)
-            .setType("text/plain")
-            .putExtra(Intent.EXTRA_TEXT, buildReport())
-        startActivity(Intent.createChooser(send, "Share CallGuard report"))
     }
 }
