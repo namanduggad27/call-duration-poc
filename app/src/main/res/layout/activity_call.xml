@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D1117"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Status Chip -->
+        <TextView
+            android:id="@+id/tvCallStatusChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_chip"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="6dp"
+            android:text="INCOMING CALL"
+            android:textColor="#58A6FF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvDirection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Cellular Call"
+            android:textColor="#8B949E"
+            android:textSize="14sp" />
+
+        <!-- Caller Info -->
+        <ImageView
+            android:id="@+id/ivAvatar"
+            android:layout_width="88dp"
+            android:layout_height="88dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_dialpad_key"
+            android:padding="20dp"
+            android:src="@drawable/ic_call" />
+
+        <TextView
+            android:id="@+id/tvCallerNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="Unknown Number"
+            android:textColor="#FFFFFF"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <!-- Duration -->
+        <TextView
+            android:id="@+id/tvCallDuration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="monospace"
+            android:text="00:00"
+            android:textColor="#8B949E"
+            android:textSize="32sp"
+            android:textStyle="bold" />
+
+        <!-- Presence Confirmation Alert Card (Hidden until limit reached) -->
+        <LinearLayout
+            android:id="@+id/cardPresenceAlert"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_warning_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="⚠️ ARE YOU STILL THERE?"
+                android:textColor="#FFA000"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:text="Call duration limit reached. Confirm presence to snooze, or call will auto-disconnect."
+                android:textColor="#E6EDF3"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/tvPresenceCountdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:text="Auto-disconnect in 30s"
+                android:textColor="#FF7043"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnSnooze"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:backgroundTint="#2E7D32"
+                    android:text="I'm Here (Snooze)"
+                    android:textColor="#FFFFFF" />
+
+                <Button
+                    android:id="@+id/btnEndFromAlert"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:backgroundTint="#C62828"
+                    android:text="End Call"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Next Check Info Card (visible during active/snoozed call) -->
+        <LinearLayout
+            android:id="@+id/cardNextCheck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvNextCheckPolicy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Call limit: 1m | Snooze: 1m"
+                android:textColor="#8B949E"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvNextCheckCountdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:gravity="center"
+                android:text="Next presence check in: 00:00"
+                android:textColor="#58A6FF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Spacer -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="24dp" />
+
+        <!-- Incoming Call Action Buttons -->
+        <LinearLayout
+            android:id="@+id/layoutIncomingActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingVertical="16dp">
+
+            <!-- Decline Button -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/btnIncomingReject"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:background="@drawable/bg_end_call_button"
+                    android:contentDescription="Decline Call"
+                    android:src="@drawable/ic_call_end" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Decline"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- Answer Button -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/btnIncomingAnswer"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:background="@drawable/bg_call_button"
+                    android:contentDescription="Answer Call"
+                    android:src="@drawable/ic_call" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Answer"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Ongoing Call Action (End Call Button) -->
+        <LinearLayout
+            android:id="@+id/layoutOngoingActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingVertical="16dp">
+
+            <ImageButton
+                android:id="@+id/btnOngoingEndCall"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:background="@drawable/bg_end_call_button"
+                android:contentDescription="End Call"
+                android:src="@drawable/ic_call_end" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="End Call"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- POC Test Verification Controls (Collapsible) -->
+        <TextView
+            android:id="@+id/tvTogglePocSection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:padding="8dp"
+            android:text="POC Verification Controls ▼"
+            android:textColor="#8B949E"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:id="@+id/layoutPocSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnPocDisconnect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:backgroundTint="#30363D"
+                android:text="Run Disconnect Test"
+                android:textColor="#FFFFFF" />
+
+            <TextView
+                android:id="@+id/tvPocResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="#8B949E"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnPocRemoteYes"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:backgroundTint="#21262D"
+                    android:text="Remote ended"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btnPocRemoteNo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:backgroundTint="#21262D"
+                    android:text="Remote still on"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

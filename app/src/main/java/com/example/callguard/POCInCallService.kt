@@ -12,8 +12,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
 /**
- * Minimal InCallService: receives the Telecom call lifecycle and hands Call objects to
- * [ActiveCallStore]. Bound by the system once this app holds ROLE_DIALER.
+ * InCallService: receives Telecom call lifecycle, launches CallActivity,
+ * and maintains notification actions for answering, declining, snoozing, and hanging up.
  */
 class POCInCallService : InCallService() {
 
@@ -21,12 +21,33 @@ class POCInCallService : InCallService() {
 
     override fun onCreate() {
         super.onCreate()
+        CallPolicyRepository.init(this)
+        CallVibrator.init(this)
         CallStateLogger.log("SERVICE", "POCInCallService created")
     }
 
     override fun onDestroy() {
         CallStateLogger.log("SERVICE", "POCInCallService destroyed")
+        CallVibrator.stop()
         super.onDestroy()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_ANSWER -> {
+                ActiveCallStore.answer()
+            }
+            ACTION_REJECT -> {
+                ActiveCallStore.reject()
+            }
+            ACTION_SNOOZE -> {
+                ActiveCallStore.snooze()
+            }
+            ACTION_DISCONNECT -> {
+                ActiveCallStore.disconnectTest()
+            }
+        }
+        return START_NOT_STICKY
     }
 
     override fun onCallAdded(call: Call) {
@@ -44,6 +65,7 @@ class POCInCallService : InCallService() {
         ActiveCallStore.onCallAdded(call)
         maybeSelectPhoneAccount(call, stateOf(call))
         refreshNotification()
+        launchCallUi()
     }
 
     override fun onCallRemoved(call: Call) {
@@ -53,10 +75,21 @@ class POCInCallService : InCallService() {
         refreshNotification()
     }
 
+    private fun launchCallUi() {
+        try {
+            val intent = Intent(this, CallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            CallStateLogger.log("SERVICE", "Could not start CallActivity directly: ${e.message}")
+        }
+    }
+
     @Suppress("DEPRECATION")
     private fun stateOf(call: Call): Int = call.state
 
-    /** Dual-SIM "always ask" case: pick the first call-capable account so the POC can proceed. */
+    /** Dual-SIM "always ask" case: pick the first call-capable account so the call can proceed. */
     private fun maybeSelectPhoneAccount(call: Call, state: Int) {
         if (state != Call.STATE_SELECT_PHONE_ACCOUNT) return
         try {
@@ -73,40 +106,86 @@ class POCInCallService : InCallService() {
         }
     }
 
-    // ---- Notification so an incoming call can be answered / the test screen reopened ----------
+    // ---- In-Call & Alert Notifications ----------------------------------------------------
 
     @SuppressLint("MissingPermission")
     private fun refreshNotification() {
         val manager = NotificationManagerCompat.from(this)
-        val primary = ActiveCallStore.state.value.primary
+        val storeState = ActiveCallStore.state.value
+        val primary = storeState.primary
         if (primary == null) {
             manager.cancel(NOTIFICATION_ID)
             return
         }
         if (!manager.areNotificationsEnabled()) {
-            CallStateLogger.log("NOTIFY", "Notifications disabled: open the app manually to answer")
+            CallStateLogger.log("NOTIFY", "Notifications disabled")
             return
         }
         ensureChannel()
 
-        val openApp = PendingIntent.getActivity(
+        val callIntent = Intent(this, CallActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        val openCallUi = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            callIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+
         val ringing = primary.state == Call.STATE_RINGING
+        val isWarning = storeState.session.state == SessionState.WAITING_FOR_CONFIRMATION
+
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(if (ringing) "Incoming call (POC)" else "Call in progress (POC)")
-            .setContentText("State: ${CallStateNames.state(primary.state)} - tap to open test screen")
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setContentIntent(openApp)
-        if (ringing) builder.setFullScreenIntent(openApp, true)
+            .setContentIntent(openCallUi)
+
+        if (ringing) {
+            builder.setContentTitle("Incoming call")
+                .setContentText(primary.phoneNumber ?: "Unknown caller")
+                .setFullScreenIntent(openCallUi, true)
+                .addAction(
+                    0,
+                    "Answer",
+                    serviceActionPendingIntent(ACTION_ANSWER, 101),
+                )
+                .addAction(
+                    0,
+                    "Decline",
+                    serviceActionPendingIntent(ACTION_REJECT, 102),
+                )
+        } else if (isWarning) {
+            val remain = storeState.session.confirmationRemainingSeconds
+            builder.setContentTitle("⚠️ Are you still there? Call limit reached")
+                .setContentText("Auto-disconnect in ${remain}s - tap I'm here to snooze")
+                .setFullScreenIntent(openCallUi, true)
+                .addAction(
+                    0,
+                    "I'm Here (Snooze)",
+                    serviceActionPendingIntent(ACTION_SNOOZE, 103),
+                )
+                .addAction(
+                    0,
+                    "End Call",
+                    serviceActionPendingIntent(ACTION_DISCONNECT, 104),
+                )
+        } else {
+            val phone = primary.phoneNumber ?: "Active call"
+            val text = when (storeState.session.state) {
+                SessionState.SNOOZED -> "Snoozed (check in ${storeState.session.secondsUntilNextCheck}s)"
+                else -> "State: ${CallStateNames.state(primary.state)}"
+            }
+            builder.setContentTitle(phone)
+                .setContentText(text)
+                .addAction(
+                    0,
+                    "End Call",
+                    serviceActionPendingIntent(ACTION_DISCONNECT, 105),
+                )
+        }
 
         try {
             manager.notify(NOTIFICATION_ID, builder.build())
@@ -115,17 +194,38 @@ class POCInCallService : InCallService() {
         }
     }
 
+    private fun serviceActionPendingIntent(action: String, requestCode: Int): PendingIntent {
+        val intent = Intent(this, POCInCallService::class.java).setAction(action)
+        return PendingIntent.getService(
+            this,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
     private fun ensureChannel() {
         val nm = getSystemService(NotificationManager::class.java)
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-            nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "POC calls", NotificationManager.IMPORTANCE_HIGH),
-            )
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "CallGuard Calls & Alerts",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "Incoming calls and call duration alerts"
+                enableVibration(true)
+            }
+            nm.createNotificationChannel(channel)
         }
     }
 
-    private companion object {
+    companion object {
         const val CHANNEL_ID = "poc_calls"
         const val NOTIFICATION_ID = 1001
+
+        const val ACTION_ANSWER = "com.example.callguard.ACTION_ANSWER"
+        const val ACTION_REJECT = "com.example.callguard.ACTION_REJECT"
+        const val ACTION_SNOOZE = "com.example.callguard.ACTION_SNOOZE"
+        const val ACTION_DISCONNECT = "com.example.callguard.ACTION_DISCONNECT"
     }
 }

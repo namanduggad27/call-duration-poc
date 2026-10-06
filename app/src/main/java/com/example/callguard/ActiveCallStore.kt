@@ -16,6 +16,17 @@ enum class DisconnectOutcome { PENDING, TELECOM_CONFIRMED, NO_CONFIRMATION }
 
 enum class Verdict { PENDING, PASS, FAIL }
 
+enum class SessionState {
+    IDLE,
+    RINGING,
+    CONNECTING,
+    ACTIVE,
+    WAITING_FOR_CONFIRMATION,
+    SNOOZED,
+    DISCONNECTING,
+    DISCONNECTED,
+}
+
 /**
  * One manual "Disconnect Test Call" attempt.
  * [remoteConfirmed] is the human check: did the OTHER phone really lose the call?
@@ -69,17 +80,29 @@ fun inferDirection(reported: Int, initialState: Int): Int = when {
     else -> Call.Details.DIRECTION_UNKNOWN
 }
 
-/** UI-facing immutable view of a tracked call (no phone number stored). */
+/** UI-facing immutable view of a tracked call. */
 data class CallView(
     val id: Int,
     val state: Int,
     val direction: Int,
     val activeSinceElapsedMs: Long?,
+    val phoneNumber: String? = null,
+)
+
+data class CallSessionInfo(
+    val state: SessionState = SessionState.IDLE,
+    val initialLimitAtElapsedMs: Long? = null,
+    val nextThresholdElapsedMs: Long? = null,
+    val confirmationDeadlineElapsedMs: Long? = null,
+    val snoozeCount: Int = 0,
+    val confirmationRemainingSeconds: Int = 0,
+    val secondsUntilNextCheck: Int = 0,
 )
 
 data class StoreState(
     val calls: List<CallView> = emptyList(),
     val records: List<TestRecord> = emptyList(),
+    val session: CallSessionInfo = CallSessionInfo(),
 ) {
     /** The call the test screen acts on: ACTIVE first, then ringing, dialing, holding. */
     val primary: CallView?
@@ -98,7 +121,7 @@ data class StoreState(
 
 /**
  * Process-wide holder of the Call objects handed to us by [POCInCallService].
- * All calls happen on the main thread (Telecom callbacks + UI).
+ * Manages the duration control state machine (Limit → Presence Check → Snooze/Disconnect).
  */
 object ActiveCallStore {
     private class Entry(
@@ -107,12 +130,25 @@ object ActiveCallStore {
         val direction: Int,
         var state: Int,
         var activeSince: Long?,
+        var phoneNumber: String?,
     )
 
     private val entries = ArrayList<Entry>()
     private var records: List<TestRecord> = emptyList()
     private var nextId = 1
     private val handler = Handler(Looper.getMainLooper())
+
+    private var currentSession = CallSessionInfo()
+    private var timerRunning = false
+
+    private val tickerRunnable = object : Runnable {
+        override fun run() {
+            onTimerTick()
+            if (timerRunning) {
+                handler.postDelayed(this, 1000L)
+            }
+        }
+    }
 
     private val _state = MutableStateFlow(StoreState())
     val state: StateFlow<StoreState> = _state.asStateFlow()
@@ -122,12 +158,14 @@ object ActiveCallStore {
     fun onCallAdded(call: Call) {
         val initial = stateOf(call)
         val reported = call.details?.callDirection ?: Call.Details.DIRECTION_UNKNOWN
+        val phoneNum = extractNumber(call)
         val entry = Entry(
             id = nextId++,
             call = call,
             direction = inferDirection(reported, initial),
             state = initial,
             activeSince = if (initial == Call.STATE_ACTIVE) SystemClock.elapsedRealtime() else null,
+            phoneNumber = phoneNum,
         )
         entries.add(entry)
         CallStateLogger.log(
@@ -135,6 +173,9 @@ object ActiveCallStore {
             "onCallAdded #${entry.id} dir=${CallStateNames.direction(entry.direction)} " +
                 "state=${CallStateNames.state(initial)}",
         )
+
+        updateSessionForState(entry.state, entry.activeSince)
+        ensureTimer()
         publish()
     }
 
@@ -142,6 +183,9 @@ object ActiveCallStore {
         val entry = find(call) ?: return
         val old = entry.state
         entry.state = newState
+        if (entry.phoneNumber == null) {
+            entry.phoneNumber = extractNumber(call)
+        }
         if (newState == Call.STATE_ACTIVE && entry.activeSince == null) {
             entry.activeSince = SystemClock.elapsedRealtime()
         }
@@ -150,6 +194,9 @@ object ActiveCallStore {
             "#${entry.id} ${CallStateNames.state(old)} -> ${CallStateNames.state(newState)}",
         )
         if (newState == Call.STATE_DISCONNECTED) markEnded(entry, "state=DISCONNECTED")
+
+        updateSessionForState(newState, entry.activeSince)
+        ensureTimer()
         publish()
     }
 
@@ -158,12 +205,151 @@ object ActiveCallStore {
         CallStateLogger.log("CALL", "onCallRemoved #${entry.id}")
         markEnded(entry, "onCallRemoved")
         entries.remove(entry)
+
+        if (entries.isEmpty()) {
+            CallVibrator.stop()
+            timerRunning = false
+            handler.removeCallbacks(tickerRunnable)
+            currentSession = CallSessionInfo(state = SessionState.IDLE)
+        }
         publish()
     }
 
-    // ---- Exposed to the test screen -------------------------------------------------------
+    // ---- Duration Control & Snooze State Machine (Section 29) ------------------------------
 
-    /** The currently relevant Telecom [Call] object (POC requirement: expose the active call). */
+    private fun updateSessionForState(telecomState: Int, activeSince: Long?) {
+        when (telecomState) {
+            Call.STATE_RINGING -> {
+                currentSession = currentSession.copy(state = SessionState.RINGING)
+            }
+            Call.STATE_DIALING, Call.STATE_CONNECTING -> {
+                currentSession = currentSession.copy(state = SessionState.CONNECTING)
+            }
+            Call.STATE_ACTIVE -> {
+                if (currentSession.state != SessionState.WAITING_FOR_CONFIRMATION &&
+                    currentSession.state != SessionState.SNOOZED
+                ) {
+                    val policy = CallPolicyRepository.getPolicy()
+                    val since = activeSince ?: SystemClock.elapsedRealtime()
+                    val threshold = since + (policy.maxDurationSeconds * 1000L)
+                    currentSession = currentSession.copy(
+                        state = SessionState.ACTIVE,
+                        initialLimitAtElapsedMs = threshold,
+                        nextThresholdElapsedMs = threshold,
+                    )
+                }
+            }
+            Call.STATE_DISCONNECTED, Call.STATE_DISCONNECTING -> {
+                CallVibrator.stop()
+                currentSession = currentSession.copy(state = SessionState.DISCONNECTED)
+            }
+        }
+    }
+
+    private fun ensureTimer() {
+        val hasActiveOrRinging = entries.any {
+            it.state == Call.STATE_ACTIVE || it.state == Call.STATE_RINGING ||
+                it.state == Call.STATE_DIALING || it.state == Call.STATE_CONNECTING
+        }
+        if (hasActiveOrRinging && !timerRunning) {
+            timerRunning = true
+            handler.post(tickerRunnable)
+        } else if (!hasActiveOrRinging && timerRunning) {
+            timerRunning = false
+            handler.removeCallbacks(tickerRunnable)
+        }
+    }
+
+    private fun onTimerTick() {
+        val primary = primaryEntry()
+        if (primary == null || primary.state != Call.STATE_ACTIVE) {
+            if (currentSession.state == SessionState.WAITING_FOR_CONFIRMATION) {
+                CallVibrator.stop()
+            }
+            publish()
+            return
+        }
+
+        val now = SystemClock.elapsedRealtime()
+        val policy = CallPolicyRepository.getPolicy()
+
+        when (currentSession.state) {
+            SessionState.ACTIVE, SessionState.SNOOZED -> {
+                val threshold = currentSession.nextThresholdElapsedMs ?: Long.MAX_VALUE
+                if (now >= threshold) {
+                    // Call limit reached! Trigger presence confirmation
+                    val deadline = now + (policy.confirmationWindowSeconds * 1000L)
+                    currentSession = currentSession.copy(
+                        state = SessionState.WAITING_FOR_CONFIRMATION,
+                        confirmationDeadlineElapsedMs = deadline,
+                        confirmationRemainingSeconds = policy.confirmationWindowSeconds.toInt(),
+                    )
+                    CallStateLogger.log(
+                        "LIMIT",
+                        "Call duration limit reached! Alerting user for presence confirmation (window: ${policy.confirmationWindowSeconds}s)",
+                    )
+                    CallVibrator.startAlertVibration()
+                } else {
+                    val secs = ((threshold - now) / 1000L).coerceAtLeast(0).toInt()
+                    currentSession = currentSession.copy(secondsUntilNextCheck = secs)
+                }
+            }
+            SessionState.WAITING_FOR_CONFIRMATION -> {
+                val deadline = currentSession.confirmationDeadlineElapsedMs ?: now
+                val remaining = ((deadline - now) / 1000L).toInt()
+                if (now >= deadline) {
+                    // Timeout with no user response! Auto-disconnect call
+                    CallStateLogger.log(
+                        "LIMIT",
+                        "PRESENCE TIMEOUT: No response from user within confirmation window -> Auto-disconnecting call",
+                    )
+                    CallVibrator.stop()
+                    currentSession = currentSession.copy(
+                        state = SessionState.DISCONNECTING,
+                        confirmationRemainingSeconds = 0,
+                    )
+                    publish()
+                    disconnectTest()
+                    return
+                } else {
+                    currentSession = currentSession.copy(
+                        confirmationRemainingSeconds = remaining.coerceAtLeast(0),
+                    )
+                }
+            }
+            else -> {}
+        }
+        publish()
+    }
+
+    /**
+     * User explicitly taps "I'm still here" (Snooze).
+     * Grants the configured snooze interval, stops vibration, and schedules the next presence check.
+     */
+    fun snooze() {
+        val policy = CallPolicyRepository.getPolicy()
+        val now = SystemClock.elapsedRealtime()
+        val nextThreshold = now + (policy.snoozeDurationSeconds * 1000L)
+        val count = currentSession.snoozeCount + 1
+
+        CallVibrator.stop()
+        currentSession = currentSession.copy(
+            state = SessionState.SNOOZED,
+            nextThresholdElapsedMs = nextThreshold,
+            confirmationDeadlineElapsedMs = null,
+            snoozeCount = count,
+            confirmationRemainingSeconds = 0,
+            secondsUntilNextCheck = policy.snoozeDurationSeconds.toInt(),
+        )
+        CallStateLogger.log(
+            "SNOOZE",
+            "User confirmed presence. Snoozed call for ${policy.snoozeDurationSeconds}s (snooze #$count)",
+        )
+        publish()
+    }
+
+    // ---- Exposed to UI and Service --------------------------------------------------------
+
     fun primaryCall(): Call? = primaryEntry()?.call
 
     fun answer() {
@@ -178,15 +364,17 @@ object ActiveCallStore {
         e.call.reject(false, null)
     }
 
-    /** The critical POC action: ask Telecom to end the live call and verify it really ends. */
+    /** The critical action: ask Telecom to end the live call and verify it really ends. */
     fun disconnectTest() {
+        CallVibrator.stop()
         val e = primaryEntry()
         if (e == null) {
             CallStateLogger.log("DISCONNECT", "No call to disconnect")
             return
         }
         if (e.state == Call.STATE_RINGING) {
-            CallStateLogger.log("DISCONNECT", "Call is ringing: use Reject, not Disconnect Test")
+            CallStateLogger.log("DISCONNECT", "Call is ringing: use Reject, not Disconnect")
+            reject()
             return
         }
         val record = TestRecord(
@@ -213,7 +401,6 @@ object ActiveCallStore {
         handler.postDelayed({ onDisconnectTimeout(record) }, DISCONNECT_TIMEOUT_MS)
     }
 
-    /** Human verification: did the other phone's call really end? Applies to the latest test. */
     fun setRemoteResult(remoteCallEnded: Boolean) {
         val last = records.lastOrNull() ?: return
         replaceRecord(last) { it.copy(remoteConfirmed = remoteCallEnded) }
@@ -225,6 +412,16 @@ object ActiveCallStore {
     }
 
     // ---- Internals ------------------------------------------------------------------------
+
+    private fun extractNumber(call: Call): String? {
+        val handle = call.details?.handle
+        if (handle != null && handle.schemeSpecificPart.isNotBlank()) {
+            return handle.schemeSpecificPart
+        }
+        val name = call.details?.callerDisplayName
+        if (!name.isNullOrBlank()) return name
+        return null
+    }
 
     private fun onDisconnectTimeout(record: TestRecord) {
         val current = records.firstOrNull {
@@ -276,8 +473,9 @@ object ActiveCallStore {
 
     private fun publish() {
         _state.value = StoreState(
-            calls = entries.map { CallView(it.id, it.state, it.direction, it.activeSince) },
+            calls = entries.map { CallView(it.id, it.state, it.direction, it.activeSince, it.phoneNumber) },
             records = records,
+            session = currentSession,
         )
     }
 }
