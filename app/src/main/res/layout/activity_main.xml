@@ -316,9 +316,10 @@
                         android:src="@drawable/ic_call" />
                 </LinearLayout>
             </LinearLayout>
-        </FrameLayout>
+        </LinearLayout>
+    </FrameLayout>
 
-        <!-- 2. HOME VIEW (Search Bar + Favourites + Call History) -->
+    <!-- 2. HOME VIEW (Search Bar + Favourites + Call History) -->
         <LinearLayout
             android:id="@+id/layoutHomeView"
             android:layout_width="match_parent"
