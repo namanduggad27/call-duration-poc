@@ -153,6 +153,32 @@ object ActiveCallStore {
     private val _state = MutableStateFlow(StoreState())
     val state: StateFlow<StoreState> = _state.asStateFlow()
 
+    private val _isSpeakerOn = MutableStateFlow(false)
+    val isSpeakerOn: StateFlow<Boolean> = _isSpeakerOn.asStateFlow()
+
+    fun updateSpeakerState(on: Boolean) {
+        _isSpeakerOn.value = on
+    }
+
+    fun toggleSpeaker() {
+        POCInCallService.setSpeaker(!_isSpeakerOn.value)
+    }
+
+    fun playDtmf(digit: Char) {
+        val call = primaryCall() ?: return
+        try {
+            call.playDtmfTone(digit)
+            handler.postDelayed({
+                try {
+                    call.stopDtmfTone()
+                } catch (_: Exception) {}
+            }, 200L)
+            CallStateLogger.log("DTMF", "Sent DTMF: $digit")
+        } catch (e: Exception) {
+            CallStateLogger.log("DTMF", "Failed to send DTMF: ${e.message}")
+        }
+    }
+
     // ---- Called by POCInCallService -------------------------------------------------------
 
     fun onCallAdded(call: Call) {
@@ -210,6 +236,8 @@ object ActiveCallStore {
         } else {
             0L
         }
+
+        CallRecorder.stopRecording()
 
         CallHistoryRepository.addRecord(
             CallRecord(

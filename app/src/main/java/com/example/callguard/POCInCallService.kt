@@ -21,6 +21,7 @@ class POCInCallService : InCallService() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         CallPolicyRepository.init(this)
         CallVibrator.init(this)
         CallStateLogger.log("SERVICE", "POCInCallService created")
@@ -29,7 +30,17 @@ class POCInCallService : InCallService() {
     override fun onDestroy() {
         CallStateLogger.log("SERVICE", "POCInCallService destroyed")
         CallVibrator.stop()
+        if (instance === this) {
+            instance = null
+        }
         super.onDestroy()
+    }
+
+    override fun onCallAudioStateChanged(audioState: android.telecom.CallAudioState?) {
+        super.onCallAudioStateChanged(audioState)
+        val isSpeaker = audioState?.route == android.telecom.CallAudioState.ROUTE_SPEAKER
+        ActiveCallStore.updateSpeakerState(isSpeaker)
+        CallStateLogger.log("AUDIO", "Audio route changed: route=${audioState?.route} isSpeaker=$isSpeaker")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -227,5 +238,23 @@ class POCInCallService : InCallService() {
         const val ACTION_REJECT = "com.example.callguard.ACTION_REJECT"
         const val ACTION_SNOOZE = "com.example.callguard.ACTION_SNOOZE"
         const val ACTION_DISCONNECT = "com.example.callguard.ACTION_DISCONNECT"
+
+        var instance: POCInCallService? = null
+            private set
+
+        fun setSpeaker(enable: Boolean) {
+            val s = instance
+            if (s == null) {
+                CallStateLogger.log("AUDIO", "Cannot set speaker: InCallService instance is null")
+                return
+            }
+            val route = if (enable) {
+                android.telecom.CallAudioState.ROUTE_SPEAKER
+            } else {
+                android.telecom.CallAudioState.ROUTE_EARPIECE
+            }
+            s.setAudioRoute(route)
+            CallStateLogger.log("AUDIO", "Requested audio route: ${if (enable) "SPEAKER" else "EARPIECE"}")
+        }
     }
 }

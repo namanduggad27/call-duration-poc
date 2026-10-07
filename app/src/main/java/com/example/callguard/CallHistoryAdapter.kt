@@ -37,13 +37,25 @@ class CallHistoryAdapter(
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val ivDirection: ImageView = itemView.findViewById(R.id.ivDirection)
+        private val tvContactName: TextView = itemView.findViewById(R.id.tvContactName)
         private val tvPhoneNumber: TextView = itemView.findViewById(R.id.tvPhoneNumber)
         private val tvTimestamp: TextView = itemView.findViewById(R.id.tvTimestamp)
         private val tvDuration: TextView = itemView.findViewById(R.id.tvDuration)
         private val btnCallBack: ImageButton = itemView.findViewById(R.id.btnCallBack)
 
         fun bind(record: CallRecord) {
-            tvPhoneNumber.text = record.phoneNumber
+            val contact = ContactHelper.getContact(itemView.context, record.phoneNumber)
+            if (contact != null) {
+                tvContactName.text = contact.name
+                tvContactName.visibility = View.VISIBLE
+                tvPhoneNumber.text = record.phoneNumber
+                tvPhoneNumber.setTextColor(android.graphics.Color.parseColor("#8B949E"))
+            } else {
+                tvContactName.visibility = View.GONE
+                tvPhoneNumber.text = record.phoneNumber
+                tvPhoneNumber.setTextColor(android.graphics.Color.parseColor("#FFFFFF"))
+            }
+
             tvTimestamp.text = dateFormat.format(Date(record.timestampMs))
 
             val isIncoming = record.direction == Call.Details.DIRECTION_INCOMING

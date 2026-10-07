@@ -27,12 +27,22 @@
         android:orientation="vertical">
 
         <TextView
+            android:id="@+id/tvContactName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Contact Name"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/tvPhoneNumber"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="+1 234 567 8900"
             android:textColor="#FFFFFF"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
         <TextView
@@ -42,7 +52,7 @@
             android:layout_marginTop="2dp"
             android:text="Today, 10:45 AM"
             android:textColor="#8B949E"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 
     <!-- Duration Badge -->

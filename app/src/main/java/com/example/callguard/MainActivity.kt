@@ -11,13 +11,14 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.telecom.TelecomManager
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,8 +35,9 @@ import kotlinx.coroutines.launch
 
 /**
  * Main Default Dialer Screen:
- * - Default launch view: Clean Keypad and dialed number display.
- * - Bottom Navigation: "Home" (Call History with timestamps & duration) and "Keypad" (Dialer).
+ * - Default launch view: Clean Keypad and dialed number display with dialpad pinned to the bottom.
+ * - Live Contact Name matching as digits are entered (Google / Device contacts).
+ * - Home Tab: Contact Search Bar at top, Horizontal Favourites section, and Call History below.
  * - Overflow Menu (⋮): Dedicated Settings, Set as Default Phone, Diagnostics, Clear History.
  * - Handles Intent.ACTION_DIAL and public TelecomManager call placement.
  */
@@ -49,7 +51,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvActiveCallBanner: TextView
 
     // View Containers (Tabs)
-    private lateinit var layoutKeypadView: ScrollView
+    private lateinit var layoutKeypadView: LinearLayout
     private lateinit var layoutHomeView: LinearLayout
 
     // Bottom Navigation
@@ -61,11 +63,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvTabKeypad: TextView
 
     // Dialpad Views
+    private lateinit var tvDialpadContactName: TextView
     private lateinit var etDialpadNumber: EditText
     private lateinit var btnBackspace: ImageButton
     private lateinit var btnPlaceCall: ImageButton
 
-    // Call History Views
+    // Home Tab: Search, Favourites & Call History
+    private lateinit var etSearchContacts: EditText
+    private lateinit var btnClearSearch: ImageButton
+    private lateinit var rvSearchResults: RecyclerView
+    private lateinit var layoutDefaultHomeContent: LinearLayout
+
+    private lateinit var rvFavorites: RecyclerView
+    private lateinit var tvEmptyFavorites: TextView
+    private lateinit var favoritesAdapter: FavoritesAdapter
+
+    private lateinit var searchAdapter: ContactSearchAdapter
+
     private lateinit var layoutEmptyHistory: LinearLayout
     private lateinit var rvCallHistory: RecyclerView
     private lateinit var historyAdapter: CallHistoryAdapter
@@ -90,6 +104,12 @@ class MainActivity : AppCompatActivity() {
                 "PERM",
                 grants.entries.joinToString { "${it.key.substringAfterLast('.')}=${it.value}" },
             )
+            if (grants[Manifest.permission.READ_CONTACTS] == true) {
+                ContactHelper.clearCache()
+                loadFavorites()
+                historyAdapter.notifyDataSetChanged()
+                updateContactNamePreview()
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         bindViews()
         setupBottomNav()
         setupDialpad()
-        setupHistoryList()
+        setupHomeFeatures()
         setupMenu()
         setupActiveCallBanner()
         handleDialIntent(intent)
@@ -132,6 +152,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        loadFavorites()
+        updateContactNamePreview()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -154,9 +180,19 @@ class MainActivity : AppCompatActivity() {
         ivTabKeypad = findViewById(R.id.ivTabKeypad)
         tvTabKeypad = findViewById(R.id.tvTabKeypad)
 
+        tvDialpadContactName = findViewById(R.id.tvDialpadContactName)
         etDialpadNumber = findViewById(R.id.etDialpadNumber)
         btnBackspace = findViewById(R.id.btnBackspace)
         btnPlaceCall = findViewById(R.id.btnPlaceCall)
+
+        // Home View elements
+        etSearchContacts = findViewById(R.id.etSearchContacts)
+        btnClearSearch = findViewById(R.id.btnClearSearch)
+        rvSearchResults = findViewById(R.id.rvSearchResults)
+        layoutDefaultHomeContent = findViewById(R.id.layoutDefaultHomeContent)
+
+        rvFavorites = findViewById(R.id.rvFavorites)
+        tvEmptyFavorites = findViewById(R.id.tvEmptyFavorites)
 
         layoutEmptyHistory = findViewById(R.id.layoutEmptyHistory)
         rvCallHistory = findViewById(R.id.rvCallHistory)
@@ -185,6 +221,8 @@ class MainActivity : AppCompatActivity() {
 
                 ivTabKeypad.setColorFilter(inactiveColor)
                 tvTabKeypad.setTextColor(inactiveColor)
+
+                loadFavorites()
             }
             NavigationTab.KEYPAD -> {
                 layoutKeypadView.visibility = View.VISIBLE
@@ -199,15 +237,66 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupHistoryList() {
+    private fun setupHomeFeatures() {
+        // 1. Favourites Adapter & List
+        favoritesAdapter = FavoritesAdapter { phoneNumber ->
+            dialContact(phoneNumber)
+        }
+        rvFavorites.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        rvFavorites.adapter = favoritesAdapter
+
+        // 2. Search Adapter & List
+        searchAdapter = ContactSearchAdapter { phoneNumber ->
+            dialContact(phoneNumber)
+        }
+        rvSearchResults.layoutManager = LinearLayoutManager(this)
+        rvSearchResults.adapter = searchAdapter
+
+        // 3. Search Bar Listener
+        etSearchContacts.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val query = s?.toString()?.trim().orEmpty()
+                if (query.isNotEmpty()) {
+                    btnClearSearch.visibility = View.VISIBLE
+                    val results = ContactHelper.searchContacts(this@MainActivity, query)
+                    searchAdapter.submitList(results)
+                    rvSearchResults.visibility = View.VISIBLE
+                    layoutDefaultHomeContent.visibility = View.GONE
+                } else {
+                    btnClearSearch.visibility = View.GONE
+                    rvSearchResults.visibility = View.GONE
+                    layoutDefaultHomeContent.visibility = View.VISIBLE
+                }
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        btnClearSearch.setOnClickListener {
+            etSearchContacts.setText("")
+        }
+
+        // 4. Call History Adapter & List
         historyAdapter = CallHistoryAdapter { phoneNumber ->
-            // Pre-fill dialed number and switch to Keypad
-            etDialpadNumber.setText(phoneNumber)
-            etDialpadNumber.setSelection(phoneNumber.length)
-            showTab(NavigationTab.KEYPAD)
+            dialContact(phoneNumber)
         }
         rvCallHistory.layoutManager = LinearLayoutManager(this)
         rvCallHistory.adapter = historyAdapter
+
+        loadFavorites()
+    }
+
+    private fun loadFavorites() {
+        val favorites = ContactHelper.getStarredContacts(this)
+        favoritesAdapter.submitList(favorites)
+        tvEmptyFavorites.visibility = if (favorites.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun dialContact(phoneNumber: String) {
+        etDialpadNumber.setText(phoneNumber)
+        etDialpadNumber.setSelection(phoneNumber.length)
+        showTab(NavigationTab.KEYPAD)
+        updateContactNamePreview()
     }
 
     private fun setupDialpad() {
@@ -216,6 +305,14 @@ class MainActivity : AppCompatActivity() {
             etDialpadNumber.setText(current + d)
             etDialpadNumber.setSelection(etDialpadNumber.text.length)
         }
+
+        etDialpadNumber.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateContactNamePreview()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
 
         findViewById<Button>(R.id.btnDigit1).setOnClickListener { appendDigit("1") }
         findViewById<Button>(R.id.btnDigit2).setOnClickListener { appendDigit("2") }
@@ -251,6 +348,17 @@ class MainActivity : AppCompatActivity() {
         btnPlaceCall.setOnClickListener { placeCall() }
     }
 
+    private fun updateContactNamePreview() {
+        val num = etDialpadNumber.text.toString().trim()
+        val contact = ContactHelper.getContact(this, num)
+        if (contact != null) {
+            tvDialpadContactName.text = contact.name
+            tvDialpadContactName.visibility = View.VISIBLE
+        } else {
+            tvDialpadContactName.visibility = View.GONE
+        }
+    }
+
     private fun handleDialIntent(intent: Intent?) {
         val i = intent ?: return
         if (i.action == Intent.ACTION_DIAL || i.action == Intent.ACTION_VIEW) {
@@ -259,6 +367,7 @@ class MainActivity : AppCompatActivity() {
                 etDialpadNumber.setText(number)
                 etDialpadNumber.setSelection(number.length)
                 showTab(NavigationTab.KEYPAD)
+                updateContactNamePreview()
                 CallStateLogger.log("DIAL", "ACTION_DIAL received with number pre-filled: $number")
             }
         }
@@ -306,12 +415,15 @@ class MainActivity : AppCompatActivity() {
         if (primary != null) {
             bannerActiveCall.visibility = View.VISIBLE
             val phone = primary.phoneNumber ?: "Cellular Call"
+            val contact = ContactHelper.getContact(this, primary.phoneNumber)
+            val displayName = contact?.name ?: phone
+
             val status = when (state.session.state) {
                 SessionState.WAITING_FOR_CONFIRMATION -> "⚠️ LIMIT REACHED - Confirm Presence"
                 SessionState.SNOOZED -> "Snoozed"
                 else -> CallStateNames.state(primary.state)
             }
-            tvActiveCallBanner.text = "🟢 $phone • $status (Tap to open)"
+            tvActiveCallBanner.text = "🟢 $displayName • $status (Tap to open)"
         } else {
             bannerActiveCall.visibility = View.GONE
         }
@@ -403,7 +515,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestRuntimePermissions() {
-        val perms = mutableListOf(Manifest.permission.CALL_PHONE)
+        val perms = mutableListOf(
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.RECORD_AUDIO,
+        )
         if (Build.VERSION.SDK_INT >= 33) {
             perms.add(Manifest.permission.POST_NOTIFICATIONS)
         }

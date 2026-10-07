@@ -65,21 +65,34 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- 1. KEYPAD VIEW (Default view when opened) -->
-        <ScrollView
+        <!-- 1. KEYPAD VIEW (Default view: Dialpad pinned to bottom) -->
+        <LinearLayout
             android:id="@+id/layoutKeypadView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:orientation="vertical">
 
+            <!-- Upper Area: Displays Contact Name & Typed Number, pushed down towards keypad -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="bottom|center_horizontal"
                 android:orientation="vertical"
                 android:paddingHorizontal="24dp"
-                android:paddingTop="16dp"
-                android:paddingBottom="16dp">
+                android:paddingBottom="12dp">
+
+                <!-- Matched Contact Name (Google / Device contacts) -->
+                <TextView
+                    android:id="@+id/tvDialpadContactName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:gravity="center"
+                    android:textColor="#58A6FF"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
 
                 <!-- Number Display with Backspace -->
                 <LinearLayout
@@ -87,7 +100,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingVertical="8dp">
+                    android:paddingVertical="4dp">
 
                     <EditText
                         android:id="@+id/etDialpadNumber"
@@ -112,12 +125,20 @@
                         android:contentDescription="Backspace"
                         android:src="@drawable/ic_backspace" />
                 </LinearLayout>
+            </LinearLayout>
+
+            <!-- Bottom Area: 3x4 Dialpad Grid & Call Button firmly pinned to the bottom -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="24dp"
+                android:paddingBottom="12dp">
 
                 <!-- Dialpad Grid 3x4 -->
                 <GridLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
                     android:alignmentMode="alignMargins"
                     android:columnCount="3"
                     android:rowCount="4">
@@ -126,9 +147,9 @@
                     <Button
                         android:id="@+id/btnDigit1"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="1"
                         android:textColor="#FFFFFF"
@@ -137,100 +158,100 @@
                     <Button
                         android:id="@+id/btnDigit2"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="2\nABC"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <Button
                         android:id="@+id/btnDigit3"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="3\nDEF"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <!-- Row 2: 4, 5, 6 -->
                     <Button
                         android:id="@+id/btnDigit4"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="4\nGHI"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <Button
                         android:id="@+id/btnDigit5"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="5\nJKL"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <Button
                         android:id="@+id/btnDigit6"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="6\nMNO"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <!-- Row 3: 7, 8, 9 -->
                     <Button
                         android:id="@+id/btnDigit7"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="7\nPQRS"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <Button
                         android:id="@+id/btnDigit8"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="8\nTUV"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <Button
                         android:id="@+id/btnDigit9"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="9\nWXYZ"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <!-- Row 4: *, 0, # -->
                     <Button
                         android:id="@+id/btnDigitStar"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="*"
                         android:textColor="#FFFFFF"
@@ -239,20 +260,20 @@
                     <Button
                         android:id="@+id/btnDigit0"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="0\n+"
                         android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
 
                     <Button
                         android:id="@+id/btnDigitHash"
                         android:layout_width="0dp"
-                        android:layout_height="64dp"
+                        android:layout_height="62dp"
                         android:layout_columnWeight="1"
-                        android:layout_margin="6dp"
+                        android:layout_margin="5dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:text="#"
                         android:textColor="#FFFFFF"
@@ -263,22 +284,22 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
+                    android:layout_marginTop="12dp"
                     android:gravity="center"
                     android:orientation="horizontal">
 
                     <ImageButton
                         android:id="@+id/btnPlaceCall"
-                        android:layout_width="72dp"
-                        android:layout_height="72dp"
+                        android:layout_width="68dp"
+                        android:layout_height="68dp"
                         android:background="@drawable/bg_call_button"
                         android:contentDescription="Place Call"
                         android:src="@drawable/ic_call" />
                 </LinearLayout>
             </LinearLayout>
-        </ScrollView>
+        </LinearLayout>
 
-        <!-- 2. HOME VIEW (Call History List) -->
+        <!-- 2. HOME VIEW (Search Bar + Favourites + Call History) -->
         <LinearLayout
             android:id="@+id/layoutHomeView"
             android:layout_width="match_parent"
@@ -286,61 +307,189 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="12dp"
-                android:text="Recent Calls"
-                android:textColor="#8B949E"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <!-- Empty State -->
+            <!-- Search Bar at the Top -->
             <LinearLayout
-                android:id="@+id/layoutEmptyHistory"
+                android:id="@+id/layoutSearchBar"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="32dp"
-                android:visibility="gone">
+                android:layout_height="44dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_search_box"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="14dp">
 
                 <ImageView
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:background="@drawable/bg_dialpad_key"
-                    android:padding="16dp"
-                    android:src="@drawable/ic_home" />
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/ic_search" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="No Call History"
+                <EditText
+                    android:id="@+id/etSearchContacts"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:hint="Search contacts or numbers..."
+                    android:imeOptions="actionSearch"
+                    android:importantForAutofill="no"
+                    android:inputType="text"
+                    android:maxLines="1"
                     android:textColor="#FFFFFF"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:textColorHint="#6E7681"
+                    android:textSize="14sp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:gravity="center"
-                    android:text="Calls made and received will appear here with timestamps and duration."
-                    android:textColor="#8B949E"
-                    android:textSize="13sp" />
+                <ImageButton
+                    android:id="@+id/btnClearSearch"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Clear Search"
+                    android:src="@drawable/ic_backspace"
+                    android:visibility="gone" />
             </LinearLayout>
 
-            <!-- History RecyclerView -->
+            <!-- Search Results RecyclerView (Visible only when searching) -->
             <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvCallHistory"
+                android:id="@+id/rvSearchResults"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:clipToPadding="false"
-                android:paddingBottom="12dp" />
+                android:paddingBottom="12dp"
+                android:visibility="gone" />
+
+            <!-- Default Home Content: Favourites + Call History -->
+            <LinearLayout
+                android:id="@+id/layoutDefaultHomeContent"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <!-- Favourites Section -->
+                <LinearLayout
+                    android:id="@+id/layoutFavoritesSection"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="6dp"
+                        android:paddingBottom="4dp">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_star" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="Favourites"
+                            android:textColor="#8B949E"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Horizontal Favourites List -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvFavorites"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="4dp" />
+
+                    <!-- Empty Favourites Prompt -->
+                    <TextView
+                        android:id="@+id/tvEmptyFavorites"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="2dp"
+                        android:text="Starred contacts will appear here."
+                        android:textColor="#484F58"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginVertical="6dp"
+                    android:background="#21262D" />
+
+                <!-- Call History Section -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="4dp"
+                    android:text="Recent Calls"
+                    android:textColor="#8B949E"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <!-- Empty State -->
+                <LinearLayout
+                    android:id="@+id/layoutEmptyHistory"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="24dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:background="@drawable/bg_dialpad_key"
+                        android:padding="14dp"
+                        android:src="@drawable/ic_home" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="No Call History"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center"
+                        android:text="Calls made and received will appear here with timestamps and duration."
+                        android:textColor="#8B949E"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- History RecyclerView -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvCallHistory"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingBottom="12dp" />
+
+            </LinearLayout>
+
         </LinearLayout>
 
     </FrameLayout>

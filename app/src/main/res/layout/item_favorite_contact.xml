@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="76dp"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="4dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:padding="4dp">
+
+    <!-- Avatar with Star Badge Frame -->
+    <FrameLayout
+        android:layout_width="54dp"
+        android:layout_height="54dp">
+
+        <ImageView
+            android:id="@+id/ivFavAvatar"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_favorite_avatar"
+            android:padding="12dp"
+            android:src="@drawable/ic_call" />
+
+        <TextView
+            android:id="@+id/tvFavInitials"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_favorite_avatar"
+            android:gravity="center"
+            android:textColor="#58A6FF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <!-- Star Badge -->
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="bottom|end"
+            android:src="@drawable/ic_star" />
+    </FrameLayout>
+
+    <!-- Contact Name -->
+    <TextView
+        android:id="@+id/tvFavName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text="Name"
+        android:textColor="#E6EDF3"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+</LinearLayout>

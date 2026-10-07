@@ -1,5 +1,9 @@
 package com.example.callguard
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
 import android.telecom.Call
@@ -7,9 +11,13 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -18,7 +26,9 @@ import kotlinx.coroutines.launch
 
 /**
  * Incoming and Ongoing Call Screen:
- * - Shows incoming call UI with Answer / Decline buttons over the lock screen.
+ * - Shows contact name (synced from Google/Device contacts) and phone number.
+ * - In-Call Features: Speakerphone toggle, DTMF Keypad, Call Audio Recording.
+ * - Shows incoming call UI with Answer / Decline buttons.
  * - Shows active call UI with duration timer, live call limit status, and End Call button.
  * - Shows urgent Presence Confirmation alert when threshold is reached with Snooze & Auto-disconnect.
  */
@@ -26,8 +36,11 @@ class CallActivity : AppCompatActivity() {
 
     private lateinit var tvCallStatusChip: TextView
     private lateinit var tvDirection: TextView
+    private lateinit var ivAvatar: ImageView
+    private lateinit var tvCallerName: TextView
     private lateinit var tvCallerNumber: TextView
     private lateinit var tvCallDuration: TextView
+    private lateinit var tvRecordingBadge: TextView
 
     private lateinit var cardPresenceAlert: LinearLayout
     private lateinit var tvPresenceCountdown: TextView
@@ -42,9 +55,22 @@ class CallActivity : AppCompatActivity() {
     private lateinit var btnIncomingAnswer: ImageButton
     private lateinit var btnIncomingReject: ImageButton
 
+    // In-call action buttons
     private lateinit var layoutOngoingActions: LinearLayout
+    private lateinit var btnSpeaker: ImageButton
+    private lateinit var tvSpeakerLabel: TextView
+    private lateinit var btnInCallKeypad: ImageButton
+    private lateinit var tvKeypadLabel: TextView
+    private lateinit var btnRecord: ImageButton
+    private lateinit var tvRecordLabel: TextView
     private lateinit var btnOngoingEndCall: ImageButton
 
+    // In-call dialpad overlay
+    private lateinit var layoutInCallDialpad: LinearLayout
+    private lateinit var btnHideInCallDialpad: Button
+    private lateinit var tvDtmfDisplay: TextView
+
+    // POC diagnostics section
     private lateinit var tvTogglePocSection: TextView
     private lateinit var layoutPocSection: LinearLayout
     private lateinit var btnPocDisconnect: Button
@@ -53,6 +79,18 @@ class CallActivity : AppCompatActivity() {
     private lateinit var btnPocRemoteNo: Button
 
     private var pocSectionExpanded = false
+    private val dtmfSequence = StringBuilder()
+
+    private val recordAudioPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                val number = ActiveCallStore.state.value.primary?.phoneNumber
+                CallRecorder.startRecording(this, number)
+                Toast.makeText(this, "Call recording started", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Microphone permission required to record calls", Toast.LENGTH_LONG).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,11 +102,18 @@ class CallActivity : AppCompatActivity() {
 
         bindViews()
         setupClicks()
+        setupDtmfDialpad()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     ActiveCallStore.state.collect { render(it) }
+                }
+                launch {
+                    ActiveCallStore.isSpeakerOn.collect { renderSpeakerState(it) }
+                }
+                launch {
+                    CallRecorder.isRecording.collect { renderRecordingState(it) }
                 }
                 launch {
                     while (true) {
@@ -83,8 +128,11 @@ class CallActivity : AppCompatActivity() {
     private fun bindViews() {
         tvCallStatusChip = findViewById(R.id.tvCallStatusChip)
         tvDirection = findViewById(R.id.tvDirection)
+        ivAvatar = findViewById(R.id.ivAvatar)
+        tvCallerName = findViewById(R.id.tvCallerName)
         tvCallerNumber = findViewById(R.id.tvCallerNumber)
         tvCallDuration = findViewById(R.id.tvCallDuration)
+        tvRecordingBadge = findViewById(R.id.tvRecordingBadge)
 
         cardPresenceAlert = findViewById(R.id.cardPresenceAlert)
         tvPresenceCountdown = findViewById(R.id.tvPresenceCountdown)
@@ -100,7 +148,17 @@ class CallActivity : AppCompatActivity() {
         btnIncomingReject = findViewById(R.id.btnIncomingReject)
 
         layoutOngoingActions = findViewById(R.id.layoutOngoingActions)
+        btnSpeaker = findViewById(R.id.btnSpeaker)
+        tvSpeakerLabel = findViewById(R.id.tvSpeakerLabel)
+        btnInCallKeypad = findViewById(R.id.btnInCallKeypad)
+        tvKeypadLabel = findViewById(R.id.tvKeypadLabel)
+        btnRecord = findViewById(R.id.btnRecord)
+        tvRecordLabel = findViewById(R.id.tvRecordLabel)
         btnOngoingEndCall = findViewById(R.id.btnOngoingEndCall)
+
+        layoutInCallDialpad = findViewById(R.id.layoutInCallDialpad)
+        btnHideInCallDialpad = findViewById(R.id.btnHideInCallDialpad)
+        tvDtmfDisplay = findViewById(R.id.tvDtmfDisplay)
 
         tvTogglePocSection = findViewById(R.id.tvTogglePocSection)
         layoutPocSection = findViewById(R.id.layoutPocSection)
@@ -118,13 +176,34 @@ class CallActivity : AppCompatActivity() {
             ActiveCallStore.reject()
         }
         btnOngoingEndCall.setOnClickListener {
+            CallRecorder.stopRecording()
             ActiveCallStore.disconnectTest()
         }
         btnSnooze.setOnClickListener {
             ActiveCallStore.snooze()
         }
         btnEndFromAlert.setOnClickListener {
+            CallRecorder.stopRecording()
             ActiveCallStore.disconnectTest()
+        }
+
+        // Speaker Toggle
+        btnSpeaker.setOnClickListener {
+            ActiveCallStore.toggleSpeaker()
+        }
+
+        // In-Call Keypad Toggle
+        btnInCallKeypad.setOnClickListener {
+            val showing = layoutInCallDialpad.visibility == View.VISIBLE
+            layoutInCallDialpad.visibility = if (showing) View.GONE else View.VISIBLE
+        }
+        btnHideInCallDialpad.setOnClickListener {
+            layoutInCallDialpad.visibility = View.GONE
+        }
+
+        // Call Recording Toggle
+        btnRecord.setOnClickListener {
+            toggleCallRecording()
         }
 
         tvTogglePocSection.setOnClickListener {
@@ -134,6 +213,7 @@ class CallActivity : AppCompatActivity() {
         }
 
         btnPocDisconnect.setOnClickListener {
+            CallRecorder.stopRecording()
             ActiveCallStore.disconnectTest()
         }
         btnPocRemoteYes.setOnClickListener {
@@ -141,6 +221,72 @@ class CallActivity : AppCompatActivity() {
         }
         btnPocRemoteNo.setOnClickListener {
             ActiveCallStore.setRemoteResult(false)
+        }
+    }
+
+    private fun setupDtmfDialpad() {
+        fun sendDtmf(c: Char) {
+            ActiveCallStore.playDtmf(c)
+            dtmfSequence.append(c)
+            tvDtmfDisplay.text = dtmfSequence.toString()
+        }
+
+        findViewById<Button>(R.id.btnDtmf1).setOnClickListener { sendDtmf('1') }
+        findViewById<Button>(R.id.btnDtmf2).setOnClickListener { sendDtmf('2') }
+        findViewById<Button>(R.id.btnDtmf3).setOnClickListener { sendDtmf('3') }
+        findViewById<Button>(R.id.btnDtmf4).setOnClickListener { sendDtmf('4') }
+        findViewById<Button>(R.id.btnDtmf5).setOnClickListener { sendDtmf('5') }
+        findViewById<Button>(R.id.btnDtmf6).setOnClickListener { sendDtmf('6') }
+        findViewById<Button>(R.id.btnDtmf7).setOnClickListener { sendDtmf('7') }
+        findViewById<Button>(R.id.btnDtmf8).setOnClickListener { sendDtmf('8') }
+        findViewById<Button>(R.id.btnDtmf9).setOnClickListener { sendDtmf('9') }
+        findViewById<Button>(R.id.btnDtmfStar).setOnClickListener { sendDtmf('*') }
+        findViewById<Button>(R.id.btnDtmf0).setOnClickListener { sendDtmf('0') }
+        findViewById<Button>(R.id.btnDtmfHash).setOnClickListener { sendDtmf('#') }
+    }
+
+    private fun toggleCallRecording() {
+        if (CallRecorder.isRecording.value) {
+            val file = CallRecorder.stopRecording()
+            Toast.makeText(this, "Recording saved: ${file?.name ?: ""}", Toast.LENGTH_SHORT).show()
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            } else {
+                val number = ActiveCallStore.state.value.primary?.phoneNumber
+                val ok = CallRecorder.startRecording(this, number)
+                if (ok) {
+                    Toast.makeText(this, "Call recording started", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Unable to start audio recording", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun renderSpeakerState(isSpeaker: Boolean) {
+        if (isSpeaker) {
+            btnSpeaker.setBackgroundResource(R.drawable.bg_in_call_action_active)
+            tvSpeakerLabel.setTextColor(Color.parseColor("#58A6FF"))
+        } else {
+            btnSpeaker.setBackgroundResource(R.drawable.bg_in_call_action)
+            tvSpeakerLabel.setTextColor(Color.parseColor("#8B949E"))
+        }
+    }
+
+    private fun renderRecordingState(isRecording: Boolean) {
+        if (isRecording) {
+            btnRecord.setBackgroundResource(R.drawable.bg_in_call_action_record_active)
+            tvRecordLabel.setTextColor(Color.parseColor("#F85149"))
+            tvRecordLabel.text = "Recording"
+            tvRecordingBadge.visibility = View.VISIBLE
+        } else {
+            btnRecord.setBackgroundResource(R.drawable.bg_in_call_action)
+            tvRecordLabel.setTextColor(Color.parseColor("#8B949E"))
+            tvRecordLabel.text = "Record"
+            tvRecordingBadge.visibility = View.GONE
         }
     }
 
@@ -152,6 +298,7 @@ class CallActivity : AppCompatActivity() {
             tvDirection.text = "Call dropped or ended"
             layoutIncomingActions.visibility = View.GONE
             layoutOngoingActions.visibility = View.GONE
+            layoutInCallDialpad.visibility = View.GONE
             cardPresenceAlert.visibility = View.GONE
             cardNextCheck.visibility = View.GONE
             lifecycleScope.launch {
@@ -163,7 +310,23 @@ class CallActivity : AppCompatActivity() {
             return
         }
 
-        tvCallerNumber.text = primary.phoneNumber ?: "Cellular Call"
+        val phone = primary.phoneNumber ?: "Unknown"
+        val contact = ContactHelper.getContact(this, phone)
+
+        if (contact != null) {
+            tvCallerName.text = contact.name
+            tvCallerNumber.text = phone
+            tvCallerNumber.visibility = View.VISIBLE
+            if (!contact.photoUri.isNullOrBlank()) {
+                try {
+                    ivAvatar.setImageURI(Uri.parse(contact.photoUri))
+                } catch (_: Exception) {}
+            }
+        } else {
+            tvCallerName.text = phone
+            tvCallerNumber.visibility = View.GONE
+        }
+
         tvDirection.text = "${CallStateNames.direction(primary.direction)} • Cellular"
 
         val ringing = primary.state == Call.STATE_RINGING
@@ -172,6 +335,7 @@ class CallActivity : AppCompatActivity() {
             tvCallStatusChip.setBackgroundResource(R.drawable.bg_chip)
             layoutIncomingActions.visibility = View.VISIBLE
             layoutOngoingActions.visibility = View.GONE
+            layoutInCallDialpad.visibility = View.GONE
             cardPresenceAlert.visibility = View.GONE
             cardNextCheck.visibility = View.GONE
         } else {
@@ -221,6 +385,11 @@ class CallActivity : AppCompatActivity() {
             tvCallDuration.text = "%02d:%02d".format(elapsedSec / 60, elapsedSec % 60)
         } else {
             tvCallDuration.text = "00:00"
+        }
+
+        if (CallRecorder.isRecording.value) {
+            val recSec = CallRecorder.getRecordingDurationSeconds()
+            tvRecordingBadge.text = "🔴 REC %02d:%02d".format(recSec / 60, recSec % 60)
         }
 
         val policy = CallPolicyRepository.getPolicy()
