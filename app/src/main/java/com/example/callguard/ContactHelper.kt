@@ -52,15 +52,24 @@ object ContactHelper {
             )
             val projection = arrayOf(
                 ContactsContract.PhoneLookup.DISPLAY_NAME,
+                ContactsContract.PhoneLookup.PHOTO_URI,
                 ContactsContract.PhoneLookup.PHOTO_THUMBNAIL_URI,
             )
 
             context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val nameIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME)
-                    val photoIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.PHOTO_THUMBNAIL_URI)
+                    val highResIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.PHOTO_URI)
+                    val thumbIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.PHOTO_THUMBNAIL_URI)
+
                     val name = if (nameIdx != -1) cursor.getString(nameIdx) else null
-                    val photoUri = if (photoIdx != -1) cursor.getString(photoIdx) else null
+                    val photoUri = if (highResIdx != -1 && !cursor.isNull(highResIdx)) {
+                        cursor.getString(highResIdx)
+                    } else if (thumbIdx != -1 && !cursor.isNull(thumbIdx)) {
+                        cursor.getString(thumbIdx)
+                    } else {
+                        null
+                    }
                     if (!name.isNullOrBlank()) {
                         details = ContactDetails(name = name, photoUri = photoUri)
                     }
@@ -110,8 +119,9 @@ object ContactHelper {
                     val number = if (numIdx != -1) cursor.getString(numIdx) else ""
                     val photo = if (photoIdx != -1) cursor.getString(photoIdx) else null
 
-                    val key = "$name|$number"
-                    if (number.isNotBlank() && seen.add(key)) {
+                    // Deduplicate by contact id or name so each contact person appears only once in favourites
+                    val dedupeKey = if (id.isNotBlank()) "id_$id" else name.trim().lowercase()
+                    if (number.isNotBlank() && seen.add(dedupeKey)) {
                         list.add(ContactItem(id = id, name = name, phoneNumber = number, photoUri = photo, isStarred = true))
                     }
                 }

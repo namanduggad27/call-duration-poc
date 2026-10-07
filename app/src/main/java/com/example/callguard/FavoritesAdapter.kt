@@ -40,6 +40,9 @@ class FavoritesAdapter(
             if (!item.photoUri.isNullOrBlank()) {
                 ivFavAvatar.visibility = View.VISIBLE
                 tvFavInitials.visibility = View.GONE
+                ivFavAvatar.setPadding(0, 0, 0, 0)
+                ivFavAvatar.clipToOutline = true
+                ivFavAvatar.scaleType = ImageView.ScaleType.CENTER_CROP
                 try {
                     ivFavAvatar.setImageURI(Uri.parse(item.photoUri))
                 } catch (_: Exception) {
@@ -55,6 +58,7 @@ class FavoritesAdapter(
         private fun showInitials(name: String) {
             ivFavAvatar.visibility = View.GONE
             tvFavInitials.visibility = View.VISIBLE
+            tvFavInitials.clipToOutline = true
             val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
             tvFavInitials.text = initial
         }

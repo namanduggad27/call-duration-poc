@@ -25,6 +25,81 @@ object CallHistoryRepository {
             prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             load()
         }
+        syncDeviceCallLog(context)
+    }
+
+    /**
+     * Safely checks and imports any cached call history from Android's CallLog provider.
+     * Silently catches SecurityException if permissions or role are not yet granted.
+     */
+    fun syncDeviceCallLog(context: Context) {
+        try {
+            val uri = android.provider.CallLog.Calls.CONTENT_URI
+            val projection = arrayOf(
+                android.provider.CallLog.Calls._ID,
+                android.provider.CallLog.Calls.NUMBER,
+                android.provider.CallLog.Calls.TYPE,
+                android.provider.CallLog.Calls.DATE,
+                android.provider.CallLog.Calls.DURATION,
+            )
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                "${android.provider.CallLog.Calls.DATE} DESC LIMIT 50",
+            )?.use { cursor ->
+                val numIdx = cursor.getColumnIndex(android.provider.CallLog.Calls.NUMBER)
+                val typeIdx = cursor.getColumnIndex(android.provider.CallLog.Calls.TYPE)
+                val dateIdx = cursor.getColumnIndex(android.provider.CallLog.Calls.DATE)
+                val durIdx = cursor.getColumnIndex(android.provider.CallLog.Calls.DURATION)
+
+                val existing = _historyFlow.value.toMutableList()
+                var addedCount = 0
+
+                while (cursor.moveToNext()) {
+                    val rawNum = if (numIdx != -1) cursor.getString(numIdx) ?: "Unknown" else "Unknown"
+                    val type = if (typeIdx != -1) cursor.getInt(typeIdx) else android.provider.CallLog.Calls.INCOMING_TYPE
+                    val date = if (dateIdx != -1) cursor.getLong(dateIdx) else System.currentTimeMillis()
+                    val duration = if (durIdx != -1) cursor.getLong(durIdx) else 0L
+
+                    // Check if already in our records
+                    val alreadyExists = existing.any {
+                        Math.abs(it.timestampMs - date) < 2000L && it.phoneNumber == rawNum
+                    }
+
+                    if (!alreadyExists) {
+                        val dir = when (type) {
+                            android.provider.CallLog.Calls.INCOMING_TYPE,
+                            android.provider.CallLog.Calls.MISSED_TYPE -> android.telecom.Call.Details.DIRECTION_INCOMING
+                            android.provider.CallLog.Calls.OUTGOING_TYPE -> android.telecom.Call.Details.DIRECTION_OUTGOING
+                            else -> android.telecom.Call.Details.DIRECTION_UNKNOWN
+                        }
+                        existing.add(
+                            CallRecord(
+                                id = "sys_$date",
+                                phoneNumber = rawNum,
+                                direction = dir,
+                                timestampMs = date,
+                                durationSeconds = duration,
+                                autoDisconnected = false,
+                            ),
+                        )
+                        addedCount++
+                    }
+                }
+
+                if (addedCount > 0) {
+                    existing.sortByDescending { it.timestampMs }
+                    val trimmed = if (existing.size > MAX_RECORDS) existing.take(MAX_RECORDS) else existing
+                    _historyFlow.value = trimmed
+                    save(trimmed)
+                    CallStateLogger.log("HISTORY", "Retrieved $addedCount cached calls from device CallLog")
+                }
+            }
+        } catch (e: Exception) {
+            CallStateLogger.log("HISTORY", "Device CallLog sync skipped: ${e.message}")
+        }
     }
 
     fun addRecord(record: CallRecord) {

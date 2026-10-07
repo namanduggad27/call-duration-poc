@@ -66,11 +66,31 @@
         android:layout_weight="1">
 
         <!-- 1. KEYPAD VIEW (Default view: Dialpad pinned to bottom) -->
-        <LinearLayout
+        <FrameLayout
             android:id="@+id/layoutKeypadView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="match_parent">
+
+            <!-- Ambient Contact Photo Background for dialed/typed number -->
+            <ImageView
+                android:id="@+id/ivKeypadBgPhoto"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <!-- Dark Gradient Scrim Overlay for maximum contrast and readability -->
+            <View
+                android:id="@+id/viewKeypadPhotoScrim"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_caller_photo_scrim"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
 
             <!-- Upper Area: Displays Contact Name & Typed Number, pushed down towards keypad -->
             <LinearLayout
@@ -109,11 +129,9 @@
                         android:layout_weight="1"
                         android:background="@null"
                         android:gravity="center"
-                        android:hint="Dial number..."
                         android:importantForAutofill="no"
                         android:inputType="phone"
                         android:textColor="#FFFFFF"
-                        android:textColorHint="#6E7681"
                         android:textSize="32sp"
                         android:textStyle="bold" />
 
@@ -123,7 +141,8 @@
                         android:layout_height="48dp"
                         android:background="@drawable/bg_dialpad_key"
                         android:contentDescription="Backspace"
-                        android:src="@drawable/ic_backspace" />
+                        android:src="@drawable/ic_backspace"
+                        android:visibility="invisible" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -297,7 +316,7 @@
                         android:src="@drawable/ic_call" />
                 </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
+        </FrameLayout>
 
         <!-- 2. HOME VIEW (Search Bar + Favourites + Call History) -->
         <LinearLayout

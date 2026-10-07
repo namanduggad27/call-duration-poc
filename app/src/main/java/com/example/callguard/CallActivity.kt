@@ -41,6 +41,8 @@ class CallActivity : AppCompatActivity() {
     private lateinit var tvCallerNumber: TextView
     private lateinit var tvCallDuration: TextView
     private lateinit var tvRecordingBadge: TextView
+    private lateinit var ivBackgroundPhoto: ImageView
+    private lateinit var viewPhotoScrim: View
 
     private lateinit var cardPresenceAlert: LinearLayout
     private lateinit var tvPresenceCountdown: TextView
@@ -133,6 +135,8 @@ class CallActivity : AppCompatActivity() {
         tvCallerNumber = findViewById(R.id.tvCallerNumber)
         tvCallDuration = findViewById(R.id.tvCallDuration)
         tvRecordingBadge = findViewById(R.id.tvRecordingBadge)
+        ivBackgroundPhoto = findViewById(R.id.ivBackgroundPhoto)
+        viewPhotoScrim = findViewById(R.id.viewPhotoScrim)
 
         cardPresenceAlert = findViewById(R.id.cardPresenceAlert)
         tvPresenceCountdown = findViewById(R.id.tvPresenceCountdown)
@@ -296,6 +300,9 @@ class CallActivity : AppCompatActivity() {
             tvCallStatusChip.text = "CALL ENDED"
             tvCallStatusChip.setBackgroundResource(R.drawable.bg_chip)
             tvDirection.text = "Call dropped or ended"
+            ivBackgroundPhoto.visibility = View.GONE
+            viewPhotoScrim.visibility = View.GONE
+            resetAvatarToDefault()
             layoutIncomingActions.visibility = View.GONE
             layoutOngoingActions.visibility = View.GONE
             layoutInCallDialpad.visibility = View.GONE
@@ -319,12 +326,31 @@ class CallActivity : AppCompatActivity() {
             tvCallerNumber.visibility = View.VISIBLE
             if (!contact.photoUri.isNullOrBlank()) {
                 try {
-                    ivAvatar.setImageURI(Uri.parse(contact.photoUri))
-                } catch (_: Exception) {}
+                    val photoUri = Uri.parse(contact.photoUri)
+                    ivBackgroundPhoto.setImageURI(photoUri)
+                    ivBackgroundPhoto.visibility = View.VISIBLE
+                    viewPhotoScrim.visibility = View.VISIBLE
+
+                    ivAvatar.setImageURI(photoUri)
+                    ivAvatar.clipToOutline = true
+                    ivAvatar.scaleType = ImageView.ScaleType.CENTER_CROP
+                    ivAvatar.setPadding(0, 0, 0, 0)
+                } catch (_: Exception) {
+                    ivBackgroundPhoto.visibility = View.GONE
+                    viewPhotoScrim.visibility = View.GONE
+                    resetAvatarToDefault()
+                }
+            } else {
+                ivBackgroundPhoto.visibility = View.GONE
+                viewPhotoScrim.visibility = View.GONE
+                resetAvatarToDefault()
             }
         } else {
             tvCallerName.text = phone
             tvCallerNumber.visibility = View.GONE
+            ivBackgroundPhoto.visibility = View.GONE
+            viewPhotoScrim.visibility = View.GONE
+            resetAvatarToDefault()
         }
 
         tvDirection.text = "${CallStateNames.direction(primary.direction)} • Cellular"
@@ -432,5 +458,12 @@ class CallActivity : AppCompatActivity() {
         } else {
             "${seconds}s"
         }
+    }
+
+    private fun resetAvatarToDefault() {
+        ivAvatar.setImageResource(R.drawable.ic_call)
+        ivAvatar.scaleType = ImageView.ScaleType.FIT_CENTER
+        val pad = (18 * resources.displayMetrics.density).toInt()
+        ivAvatar.setPadding(pad, pad, pad, pad)
     }
 }

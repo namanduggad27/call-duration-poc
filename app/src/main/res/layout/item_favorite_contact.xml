@@ -21,7 +21,8 @@
             android:layout_height="52dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_favorite_avatar"
-            android:padding="12dp"
+            android:clipToOutline="true"
+            android:scaleType="centerCrop"
             android:src="@drawable/ic_call" />
 
         <TextView

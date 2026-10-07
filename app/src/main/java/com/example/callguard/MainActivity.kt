@@ -51,7 +51,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvActiveCallBanner: TextView
 
     // View Containers (Tabs)
-    private lateinit var layoutKeypadView: LinearLayout
+    private lateinit var layoutKeypadView: View
+    private lateinit var ivKeypadBgPhoto: ImageView
+    private lateinit var viewKeypadPhotoScrim: View
     private lateinit var layoutHomeView: LinearLayout
 
     // Bottom Navigation
@@ -155,6 +157,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         loadFavorites()
+        CallHistoryRepository.syncDeviceCallLog(this)
         updateContactNamePreview()
     }
 
@@ -170,6 +173,8 @@ class MainActivity : AppCompatActivity() {
         tvActiveCallBanner = findViewById(R.id.tvActiveCallBanner)
 
         layoutKeypadView = findViewById(R.id.layoutKeypadView)
+        ivKeypadBgPhoto = findViewById(R.id.ivKeypadBgPhoto)
+        viewKeypadPhotoScrim = findViewById(R.id.viewKeypadPhotoScrim)
         layoutHomeView = findViewById(R.id.layoutHomeView)
 
         tabHome = findViewById(R.id.tabHome)
@@ -350,12 +355,34 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateContactNamePreview() {
         val num = etDialpadNumber.text.toString().trim()
-        val contact = ContactHelper.getContact(this, num)
-        if (contact != null) {
-            tvDialpadContactName.text = contact.name
-            tvDialpadContactName.visibility = View.VISIBLE
+        btnBackspace.visibility = if (num.isNotEmpty()) View.VISIBLE else View.INVISIBLE
+        if (num.isNotEmpty()) {
+            val contact = ContactHelper.getContact(this, num)
+            if (contact != null) {
+                tvDialpadContactName.text = contact.name
+                tvDialpadContactName.visibility = View.VISIBLE
+                if (!contact.photoUri.isNullOrBlank()) {
+                    try {
+                        ivKeypadBgPhoto.setImageURI(Uri.parse(contact.photoUri))
+                        ivKeypadBgPhoto.visibility = View.VISIBLE
+                        viewKeypadPhotoScrim.visibility = View.VISIBLE
+                    } catch (_: Exception) {
+                        ivKeypadBgPhoto.visibility = View.GONE
+                        viewKeypadPhotoScrim.visibility = View.GONE
+                    }
+                } else {
+                    ivKeypadBgPhoto.visibility = View.GONE
+                    viewKeypadPhotoScrim.visibility = View.GONE
+                }
+            } else {
+                tvDialpadContactName.visibility = View.GONE
+                ivKeypadBgPhoto.visibility = View.GONE
+                viewKeypadPhotoScrim.visibility = View.GONE
+            }
         } else {
             tvDialpadContactName.visibility = View.GONE
+            ivKeypadBgPhoto.visibility = View.GONE
+            viewKeypadPhotoScrim.visibility = View.GONE
         }
     }
 

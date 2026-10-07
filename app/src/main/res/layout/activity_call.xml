@@ -4,6 +4,22 @@
     android:layout_height="match_parent"
     android:background="#0D1117">
 
+    <!-- Full-Screen Contact Photo Background -->
+    <ImageView
+        android:id="@+id/ivBackgroundPhoto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- Dark Gradient Scrim Overlay for crystal-clear readability -->
+    <View
+        android:id="@+id/viewPhotoScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_caller_photo_scrim"
+        android:visibility="gone" />
+
     <!-- Main Call Screen ScrollView -->
     <ScrollView
         android:layout_width="match_parent"
@@ -47,6 +63,7 @@
                 android:layout_height="80dp"
                 android:layout_marginTop="20dp"
                 android:background="@drawable/bg_dialpad_key"
+                android:clipToOutline="true"
                 android:padding="18dp"
                 android:src="@drawable/ic_call" />
 
